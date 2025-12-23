@@ -1,170 +1,119 @@
-# Quant Trader (量化交易系统)
+# Market Ingestor - High-Performance Market Data Ingestion & Processing System
 
-[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org/)
-[![NATS](https://img.shields.io/badge/NATS-JetStream-37A546?style=flat&logo=nats)](https://nats.io/)
-[![TimescaleDB](https://img.shields.io/badge/TimescaleDB-PostgreSQL-FDB515?style=flat&logo=postgresql)](https://www.timescale.com/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker)](https://www.docker.com/)
-
-Quant Trader 是一个基于 **微服务架构 (Microservices)** 与 **事件驱动 (Event-Driven)** 模式构建的高性能加密货币量化交易系统。项目旨在满足高并发行情接入、低延迟数据处理、实时策略执行及大规模回测的需求。
+`market-ingestor` is the core infrastructure of the Quant Trader system, designed for **high concurrency, low latency, and high availability**. It integrates multi-exchange data ingestion, streaming K-line aggregation, asynchronous batch persistence, and real-time market data push.
 
 ---
 
-## 🏗 系统架构
+## 1. System Architecture
 
-系统采用生产者-消费者模型，通过 **NATS JetStream** 进行解耦，主要包含以下核心服务：
+The system is built on the **Golang Concurrency Model** and **NATS JetStream Event-Driven Architecture**, achieving high throughput by decoupling producers and consumers.
 
-1.  **Market Ingestor (行情接入服务)**
-    *   负责连接各大交易所 (Binance, OKX, Bybit, Coinbase, Kraken) 的 WebSocket 接口。
-    *   进行协议适配与数据清洗，将异构数据标准化为统一格式。
-    *   支持断线自动重连 (Exponential Backoff) 与心跳保活。
-2.  **Stream Processor (流处理服务)**
-    *   订阅实时 Tick 数据，实时聚合生成各周期 K 线 (1m, 5m 等)。
-    *   计算实时技术指标 (RSI, MA 等)。
-3.  **Persistence Service (持久化服务)**
-    *   消费 NATS 消息队列，采用 Batch Insert (批量插入) 策略写入 TimescaleDB。
-    *   利用 Hypertable 自动分区技术，高效存储海量金融时序数据。
-4.  **Push Gateway (推送网关)**
-    *   维护客户端 WebSocket 长连接池。
-    *   实现基于 Topic 的订阅/发布模型，将实时行情低延迟广播给前端或下游策略。
-5.  **Backtest Engine (回测引擎)**
-    *   纯 Go 实现的高性能回测核心。
-    *   支持多策略配置、资金模拟、滑点/手续费计算。
-    *   输出详细的绩效报告 (Win Rate, Max Drawdown, Sharpe Ratio)。
-6.  **API Server**
-    *   提供 RESTful API，用于历史数据查询、回测任务提交与结果检索。
+### 1.1 Data Flow
+1.  **Ingestion Layer**: Maintains WebSocket connections with exchanges (Binance, OKX, Bybit, Coinbase, Kraken), converting raw messages into normalized `model.Trade`.
+2.  **Messaging Layer**: Raw trades are published to NATS JetStream topics `market.raw.{exchange}.{symbol}`.
+3.  **Processing Layer**: `KlineProcessor` subscribes to raw trade streams, maintains minute-level window states in memory, and generates K-line data.
+4.  **Storage Layer**: `BatchSaver` subscribes to `market.raw` and `market.kline` streams, efficiently writing to TimescaleDB using batch insertion.
+5.  **Push Layer**: `PushGateway` subscribes to aggregated K-line streams and broadcasts them to end-users via WebSocket.
+
+### 1.2 Concurrency Topology
+The system utilizes Goroutines and Channels for highly parallel execution:
+- Each exchange connection, processing logic, and client transmission runs in an independent Goroutine.
+- **Communication Pattern**: `Connector -> tradeChan (Go Channel) -> NATS JetStream -> Subscriptions`.
 
 ---
 
-## 🛠 技术选型
+## 2. Core Algorithms & Design Details
 
-*   **编程语言**: Go (Golang)
-*   **消息中间件**: NATS JetStream (低延迟、高性能、支持持久化)
-*   **数据库**: TimescaleDB (基于 PostgreSQL 的时序数据库)
-*   **缓存**: Redis (用于热数据、会话管理)
-*   **精度处理**: `shopspring/decimal` (杜绝浮点数精度丢失)
-*   **并发模型**: Go Worker Pool + Channels
+### 2.1 High-Reliability Ingestion (Connector)
+**Goal**: Ensure no data loss in unstable network environments.
+-   **Dual Timeout Control**:
+    -   `ReadDeadline`: Set to 60s. Active reconnection if no data is received.
+    -   `WriteDeadline`: Ensures heartbeat packets don't block the main logic.
+-   **Exponential Backoff Reconnection**:
+    Automatic retries with increasing intervals (1s, 2s, 4s... up to 60s) to avoid overwhelming exchange APIs.
+-   **Lock-Free Parsing**: Uses `json.RawMessage` to defer parsing non-critical fields, improving CPU utilization.
 
----
+### 2.2 Symbol Normalization
+Exchanges use different naming formats (e.g., `BTC-USDT`, `btcusdt`, `XBT/USD`). The system normalizes these to a standard format (e.g., `BTCUSDT`) before publishing to NATS.
 
-## 🚀 功能特性
+### 2.3 Streaming K-Line Aggregation (Kline Processor)
+**Goal**: Millisecond-level K-line generation with O(1) efficiency.
+-   **In-Memory Window State Machine**:
+    - Uses `map[string]*model.KLine` to store active windows.
+    - **Aggregation Logic**:
+        - `High = max(High, newPrice)`
+        - `Low = min(Low, newPrice)`
+        - `Close = newPrice`
+        - `Volume += newAmount`
+-   **Sliding Flush**:
+    Flushes every 5 seconds. If `candle.Timestamp.Unix() < currentMinute.Unix()`, the minute is considered closed, published to NATS, and removed from memory.
 
-*   **多交易所支持**: 已接入 Binance, OKX, Bybit, Coinbase, Kraken。
-*   **高精度计算**: 全链路采用 Decimal 类型，确保金额与价格零误差。
-*   **实时聚合**: 基于时间窗口的流式 K 线生成算法。
-*   **高性能存储**: 针对时序数据优化的数据库 Schema 设计。
-*   **健壮性**: 完善的错误处理、重连机制与优雅关闭 (Graceful Shutdown)。
-*   **可观测性**: 集成 Prometheus 监控指标 (连接数、处理速率、DB 延迟)。
+### 2.4 Asynchronous Batch Persistence (Batch Persistence)
+**Goal**: Solve I/O bottlenecks for high-frequency writes.
+-   **Dual-Trigger Flush**:
+    - Buffer `buffer []model.Trade` reaches 1000 items OR 1-second timer expires.
+-   **TimescaleDB Hypertable Optimization**:
+    - Automatic partitioning by `time` field (Chunking).
+    - **Indexing Strategy**: Composite index on `(symbol, time DESC)` for optimized queries.
+-   **SQL Performance**: Uses `pgx.Batch` to reduce network round-trips (RTT), increasing throughput by 10-20x.
 
----
-
-## 📂 目录结构
-
-```
-quant-trader/
-├── market-ingestor/
-│   ├── cmd/                # 程序入口
-│   ├── internal/
-│   │   ├── api/            # HTTP API Handler
-│   │   ├── config/         # 配置管理
-│   │   ├── connector/      # 交易所连接器 (Binance, OKX...)
-│   │   ├── engine/         # 回测引擎核心
-│   │   ├── infrastructure/ # 基础设施 (DB, NATS, Logger)
-│   │   ├── model/          # 数据模型定义
-│   │   ├── processor/      # 流处理器 (K线聚合)
-│   │   ├── push/           # WebSocket 推送网关
-│   │   ├── storage/        # 数据持久化
-│   │   └── strategy/       # 交易策略实现
-│   └── scripts/            # 数据库初始化脚本
-├── docker-compose.yml      # 容器编排
-└── README.md               # 项目文档
-```
+### 2.5 Non-Blocking Broadcast (Push Gateway)
+**Goal**: Support 10k+ concurrent client subscriptions without "slow client" issues.
+-   **Client Isolation**: Each client has an independent `send chan []byte` (capacity 256).
+-   **Drop Policy**: If the `send` channel is full, the latest data is dropped (`default: break`). Data timeliness is prioritized over blocking the system.
 
 ---
 
-## 💾 数据库设计 (Schema)
+## 3. Data Model & Precision
 
-核心表结构设计如下 (TimescaleDB Hypertable)：
+### 3.1 Financial Precision
+**No `float64` is used** for prices or amounts.
+-   **Go Layer**: `shopspring/decimal` library for arbitrary-precision arithmetic.
+-   **DB Layer**: PostgreSQL `NUMERIC(20, 8)` type.
 
-### 1. 原始成交记录 (market_trades)
-```sql
-CREATE TABLE market_trades (
-    time        TIMESTAMPTZ NOT NULL,
-    symbol      TEXT NOT NULL,
-    exchange    TEXT NOT NULL,
-    price       NUMERIC NOT NULL,
-    amount      NUMERIC NOT NULL,
-    side        TEXT,
-    trade_id    TEXT
-);
-SELECT create_hypertable('market_trades', 'time');
-```
-
-### 2. K 线数据 (market_candles)
-```sql
-CREATE TABLE market_candles (
-    time        TIMESTAMPTZ NOT NULL,
-    symbol      TEXT NOT NULL,
-    exchange    TEXT NOT NULL,
-    period      TEXT NOT NULL,
-    open        NUMERIC,
-    high        NUMERIC,
-    low         NUMERIC,
-    close       NUMERIC,
-    volume      NUMERIC
-);
-SELECT create_hypertable('market_candles', 'time');
-```
+### 3.2 Database Schema
+-   `market_trades`: Records every trade with `trade_id` for idempotency.
+-   `market_klines`: Stores aggregated K-lines with `period` (1m, 5m, 1h, etc.).
 
 ---
 
-## 🗓 开发路线图 (Roadmap)
+## 4. Stability & Operations
 
-### Phase 1: 基础设施与数据接入 (Completed) ✅
-- [x] 项目初始化与 Docker 环境搭建
-- [x] 定义核心数据模型 (Decimal 精度)
-- [x] 开发 Market Ingestor (Binance, OKX, Bybit, Coinbase, Kraken)
-- [x] 实现 TimescaleDB 批量写入
+### 4.1 Graceful Shutdown
+Listens for `SIGTERM` and `SIGINT`:
+1. Stop all Ingestor Connectors.
+2. Force `Flush` all `BatchSaver` buffers.
+3. Wait for NATS consumer Acks.
+4. Close database connection pools.
 
-### Phase 2: 实时流处理与分发 (Completed) ✅
-- [x] 集成 NATS JetStream
-- [x] 实现 1m K 线实时聚合算法
-- [x] 开发 WebSocket Push Gateway (订阅/广播)
-
-### Phase 3: 回测引擎 (Completed) ✅
-- [x] 定义策略接口 (Strategy Interface)
-- [x] 实现简单移动平均 (SMA) 策略
-- [x] 开发回测核心 (撮合、资金管理、绩效统计)
-
-### Sprint 4: API & UI (Completed ✅)
-- **Gin API Server**: Integrated Gin framework with JWT authentication.
-- **Monitoring**: Prometheus metrics (latency, connections, insert rate) and Grafana dashboard.
-- **Web UI**: Simple Vue.js + ECharts dashboard for real-time monitoring and history viewing.
+### 4.2 Prometheus Metrics
+Exposed via `/metrics`:
+-   `ingest_latency_seconds`: End-to-end latency.
+-   `db_insert_total`: Successfully written records.
+-   `ws_connections_total`: Active WebSocket clients.
+-   `trade_process_total`: Trades processed per second.
 
 ---
 
-## ⚡️ 快速开始
+## 5. Performance Tuning
 
-### 1. 启动基础设施
+| Parameter | Default | Description | Tuning Suggestion |
+| :--- | :--- | :--- | :--- |
+| `BATCH_SIZE` | 1000 | Persistence batch size | Increase to 5000 for high load |
+| `FLUSH_INTERVAL` | 1s | Persistence flush interval | Decrease to 500ms for high real-time needs |
+| `WS_SEND_BUFFER` | 256 | WebSocket send buffer | Adjust carefully based on client count |
+
+---
+
+## 6. Developer Guide
+
+### How to add a new exchange?
+1. Create `new_exchange.go` in `internal/connector/`.
+2. Implement `Run(ctx context.Context, tradeChan chan<- model.Trade)`.
+3. Register it in `internal/app/worker.go`.
+
+### How to run tests?
 ```bash
-docker-compose up -d
+go test ./internal/...
+go test -bench=. ./internal/processor/...
 ```
-
-### 2. 运行服务
-```bash
-cd market-ingestor
-go run cmd/main.go
-```
-
-### 3. 测试 API
-*   **获取历史 K 线**: `GET /api/v1/klines/BTCUSDT?period=1m`
-*   **运行回测**: `POST /api/v1/backtest`
-*   **WebSocket 订阅**: `ws://localhost:8080/ws`
-
----
-
-## 🧪 测试
-
-```bash
-go test ./...
-```
-目前已覆盖 Connector, Processor, Storage, Engine 等核心模块的单元测试。
