@@ -1,0 +1,22 @@
+# docker-compose.yml
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      POSTGRES_PASSWORD: password
+    ports: ["5432:5432"]
+    volumes:
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  nats:
+    image: nats:latest
+    command: "-js" # Enable JetStream
+    ports: ["4222:4222", "8222:8222"]
+
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["3000:3000"]
