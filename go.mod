@@ -19,7 +19,10 @@ require (
 	golang.org/x/time v0.14.0
 )
 
-require github.com/jackc/puddle/v2 v2.2.2 // indirect
+require (
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
