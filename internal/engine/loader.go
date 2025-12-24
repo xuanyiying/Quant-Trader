@@ -2,7 +2,7 @@ package engine
 
 import (
 	"context"
-	"market-ingestor/internal/model"
+	"quant-trader/internal/model"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"

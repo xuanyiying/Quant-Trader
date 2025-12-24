@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"market-ingestor/internal/connector"
-	"market-ingestor/internal/engine"
-	"market-ingestor/internal/infrastructure"
-	"market-ingestor/internal/model"
-	"market-ingestor/internal/storage"
-	"market-ingestor/internal/strategy"
+	"quant-trader/internal/connector"
+	"quant-trader/internal/engine"
+	"quant-trader/internal/infrastructure"
+	"quant-trader/internal/model"
+	"quant-trader/internal/storage"
+	"quant-trader/internal/strategy"
 
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"

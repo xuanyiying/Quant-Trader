@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"market-ingestor/internal/indicators"
-	"market-ingestor/internal/model"
+	"quant-trader/internal/indicators"
+	"quant-trader/internal/model"
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"

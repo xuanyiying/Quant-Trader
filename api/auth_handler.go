@@ -1,8 +1,8 @@
 package api
 
 import (
-	"market-ingestor/api/middleware"
 	"net/http"
+	"quant-trader/api/middleware"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"market-ingestor/internal/app"
+	"quant-trader/internal/app"
 )
 
 func main() {

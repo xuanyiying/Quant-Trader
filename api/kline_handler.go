@@ -2,11 +2,11 @@ package api
 
 import (
 	"context"
-	"market-ingestor/internal/engine"
-	"market-ingestor/internal/model"
-	"market-ingestor/internal/storage"
-	"market-ingestor/internal/strategy"
 	"net/http"
+	"quant-trader/internal/engine"
+	"quant-trader/internal/model"
+	"quant-trader/internal/storage"
+	"quant-trader/internal/strategy"
 	"strings"
 	"time"
 

@@ -1,9 +1,9 @@
 package engine
 
 import (
-	"market-ingestor/internal/model"
-	"market-ingestor/internal/strategy"
 	"math"
+	"quant-trader/internal/model"
+	"quant-trader/internal/strategy"
 
 	"github.com/shopspring/decimal"
 )

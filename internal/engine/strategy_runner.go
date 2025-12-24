@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"market-ingestor/internal/model"
-	"market-ingestor/internal/strategy"
+	"quant-trader/internal/model"
+	"quant-trader/internal/strategy"
 	"strings"
 
 	"github.com/nats-io/nats.go"

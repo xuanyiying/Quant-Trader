@@ -1,8 +1,8 @@
 package indicators
 
 import (
-	"market-ingestor/internal/model"
 	"math"
+	"quant-trader/internal/model"
 
 	"github.com/shopspring/decimal"
 )

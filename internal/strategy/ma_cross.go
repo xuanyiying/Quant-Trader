@@ -1,7 +1,7 @@
 package strategy
 
 import (
-	"market-ingestor/internal/model"
+	"quant-trader/internal/model"
 	"sync"
 
 	"github.com/shopspring/decimal"

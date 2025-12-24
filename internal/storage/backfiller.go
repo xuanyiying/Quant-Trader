@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"market-ingestor/internal/model"
 	"net/http"
+	"quant-trader/internal/model"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"

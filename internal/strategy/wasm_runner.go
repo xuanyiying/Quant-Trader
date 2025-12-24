@@ -3,7 +3,7 @@ package strategy
 import (
 	"context"
 	"fmt"
-	"market-ingestor/internal/model"
+	"quant-trader/internal/model"
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"

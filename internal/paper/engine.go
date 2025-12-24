@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"market-ingestor/internal/model"
+	"quant-trader/internal/model"
 	"sync"
 	"time"
 

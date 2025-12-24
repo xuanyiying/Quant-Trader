@@ -1,4 +1,4 @@
-module market-ingestor
+module quant-trader
 
 go 1.24.3
 

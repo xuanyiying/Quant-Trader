@@ -2,8 +2,8 @@ package push
 
 import (
 	"encoding/json"
-	"market-ingestor/internal/infrastructure"
 	"net/http"
+	"quant-trader/internal/infrastructure"
 	"sync"
 
 	"github.com/gorilla/websocket"

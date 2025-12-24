@@ -1,7 +1,7 @@
 package paper
 
 import (
-	"market-ingestor/internal/model"
+	"quant-trader/internal/model"
 	"testing"
 
 	"github.com/shopspring/decimal"

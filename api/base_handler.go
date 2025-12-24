@@ -1,10 +1,10 @@
 package api
 
 import (
-	"market-ingestor/internal/analytics"
-	"market-ingestor/internal/payment"
-	"market-ingestor/internal/risk"
 	"os"
+	"quant-trader/internal/analytics"
+	"quant-trader/internal/payment"
+	"quant-trader/internal/risk"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"

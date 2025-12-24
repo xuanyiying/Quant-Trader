@@ -1,8 +1,8 @@
 package engine
 
 import (
-	"market-ingestor/internal/model"
-	"market-ingestor/internal/strategy"
+	"quant-trader/internal/model"
+	"quant-trader/internal/strategy"
 	"testing"
 	"time"
 

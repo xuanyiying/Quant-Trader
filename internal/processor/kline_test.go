@@ -2,7 +2,7 @@ package processor
 
 import (
 	"fmt"
-	"market-ingestor/internal/model"
+	"quant-trader/internal/model"
 	"testing"
 	"time"
 

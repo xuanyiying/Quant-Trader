@@ -2,8 +2,8 @@ package engine
 
 import (
 	"context"
-	"market-ingestor/internal/model"
-	"market-ingestor/internal/strategy"
+	"quant-trader/internal/model"
+	"quant-trader/internal/strategy"
 
 	"go.uber.org/zap"
 )

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"market-ingestor/internal/infrastructure"
-	"market-ingestor/internal/model"
+	"quant-trader/internal/infrastructure"
+	"quant-trader/internal/model"
 	"time"
 
 	"github.com/gorilla/websocket"
