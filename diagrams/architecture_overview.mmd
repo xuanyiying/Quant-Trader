@@ -1,0 +1,60 @@
+graph TD
+  subgraph Ingestion[接入层 (Ingestion)]
+    BC[Binance Connector]
+    OC[OKX Connector]
+    BY[Bybit Connector]
+    CB[Coinbase Connector]
+    KR[Kraken Connector]
+    Norm[NormalizeSymbol]
+  end
+
+  subgraph Bus[NATS JetStream (Event Bus)]
+    RawT[market.raw.*.*]
+    KlineT[market.kline.*.*]
+    SigT[strategy.signal.*.*]
+    NotifT[notification.user.*]
+    MatchT[matching.event.*]
+    KV1[(KV: MATCHING_SNAPSHOT)]
+    KV2[(KV: MATCHING_LEASE)]
+  end
+
+  subgraph Core[核心处理]
+    KP[KlineProcessor]
+    AS[AlertService]
+    PE[PaperEngine]
+    SR[StrategyRunner]
+    PG[PushGateway]
+    ME[Matching Engine]
+  end
+
+  subgraph Storage[持久化]
+    TSDB[(TimescaleDB)]
+    TradeSaver[BatchSaver(trades)]
+    KlineSaver[KlineSaver(klines)]
+  end
+
+  subgraph API[对外接口]
+    HTTP[REST API (Gin)]
+    WS[/ws WebSocket]
+  end
+
+  BC & OC & BY & CB & KR --> Norm
+  Norm --> RawT
+  RawT --> KP
+  KP --> KlineT
+  RawT --> TradeSaver
+  KlineT --> KlineSaver
+  KlineT --> AS
+  KlineT --> PE
+  KlineT --> SR
+  KlineT --> PG
+  SigT --> PG
+  NotifT --> PG
+  TradeSaver --> TSDB
+  KlineSaver --> TSDB
+  HTTP --> TSDB
+  WS --> PG
+
+  ME --> MatchT
+  ME --> KV1
+  ME --> KV2

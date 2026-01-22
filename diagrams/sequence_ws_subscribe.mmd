@@ -1,0 +1,19 @@
+sequenceDiagram
+  autonumber
+  participant FE as Frontend (Browser)
+  participant WS as PushGateway (/ws)
+  participant JS as JetStream
+
+  FE->>WS: WebSocket connect
+  WS-->>FE: connected/ready
+
+  FE->>WS: {"action":"subscribe","topic":"market.kline.1m.BTCUSDT"}
+  WS->>JS: Subscribe(topic)\n(create nats.Subscription)
+  JS-->>WS: Msg(topic,data)
+  WS-->>FE: send(data)
+
+  FE->>WS: {"action":"unsubscribe","topic":"market.kline.1m.BTCUSDT"}
+  WS->>JS: Unsubscribe(topic)
+
+  FE->>WS: close
+  WS->>JS: cleanup all subscriptions

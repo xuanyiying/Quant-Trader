@@ -14,6 +14,7 @@ import (
 	"quant-trader/internal/alert"
 	"quant-trader/internal/config"
 	"quant-trader/internal/infrastructure"
+	"quant-trader/internal/matching"
 	"quant-trader/internal/paper"
 	"quant-trader/internal/processor"
 	"quant-trader/internal/push"
@@ -37,6 +38,13 @@ type App struct {
 	AlertService *alert.AlertService
 	PaperEngine  *paper.PaperEngine
 	HTTPServer   *http.Server
+
+	MatchEngine   *matching.Engine
+	MatchWAL      matching.WAL
+	MatchSnapshot matching.SnapshotStore
+	MatchLease    matching.Lease
+
+	runCancel context.CancelFunc
 }
 
 // NewApp creates a new application instance
@@ -86,6 +94,13 @@ func (a *App) Init(ctx context.Context) error {
 
 // Run starts the application services and the HTTP server
 func (a *App) Run(ctx context.Context) error {
+	runCtx, cancel := context.WithCancel(ctx)
+	a.runCancel = cancel
+
+	if err := a.initMatching(runCtx); err != nil {
+		return err
+	}
+
 	// Start Persistence Service
 	tradeSaver := storage.NewBatchSaver(a.DB, a.Logger, 1*time.Second, 1000)
 	klineSaver := storage.NewKlineSaver(a.DB, a.Logger, 1*time.Second, 100)
@@ -93,25 +108,25 @@ func (a *App) Run(ctx context.Context) error {
 
 	// Start Stream Processor
 	klineProcessor := processor.NewKlineProcessor(a.JS, a.Logger)
-	if err := klineProcessor.Run(ctx); err != nil {
+	if err := klineProcessor.Run(runCtx); err != nil {
 		return fmt.Errorf("failed to start kline processor: %w", err)
 	}
 
 	// Start Alert Service
-	if err := a.AlertService.Start(ctx); err != nil {
+	if err := a.AlertService.Start(runCtx); err != nil {
 		a.Logger.Error("failed to start alert service", zap.Error(err))
 	}
 
 	// Start Paper Engine
-	if err := a.PaperEngine.Start(ctx); err != nil {
+	if err := a.PaperEngine.Start(runCtx); err != nil {
 		a.Logger.Error("failed to start paper engine", zap.Error(err))
 	}
 
 	// Start Ingestion Worker
-	a.startIngestionWorker(ctx)
+	a.startIngestionWorker(runCtx)
 
 	// Start Strategy Runner
-	a.startStrategyRunner(ctx)
+	a.startStrategyRunner(runCtx)
 
 	// Setup HTTP Server
 	a.HTTPServer = &http.Server{
@@ -136,6 +151,9 @@ func (a *App) waitForShutdown() error {
 	<-stop
 
 	a.Logger.Info("shutting down...")
+	if a.runCancel != nil {
+		a.runCancel()
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

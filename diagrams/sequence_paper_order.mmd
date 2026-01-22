@@ -1,0 +1,21 @@
+sequenceDiagram
+  autonumber
+  participant FE as Frontend
+  participant API as Paper API (Gin)
+  participant DB as TimescaleDB
+  participant PE as PaperEngine
+  participant JS as JetStream
+
+  FE->>API: POST /api/v1/paper/orders (JWT)
+  API->>DB: INSERT paper_orders RETURNING id
+  API-->>FE: 200 OK (order created)
+
+  PE->>JS: Subscribe market.kline.1m.*
+  JS-->>PE: Kline msg
+  PE->>PE: Update market snapshot
+  PE->>PE: Match open orders (in-memory)
+  PE->>DB: BEGIN
+  PE->>DB: UPDATE paper_orders (fills/status)
+  PE->>DB: UPDATE paper_accounts (balance)
+  PE->>DB: UPSERT paper_positions
+  PE->>DB: COMMIT

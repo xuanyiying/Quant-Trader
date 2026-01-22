@@ -1,0 +1,13 @@
+stateDiagram-v2
+  [*] --> PreOpen
+  PreOpen --> OpenAuction: SetMarketState(StateOpenAuction)
+  OpenAuction --> Continuous: SetMarketState(StateContinuous)\nMatchAuction + emit trades
+  Continuous --> Closing: SetMarketState(StateClosing)
+  Closing --> Closed: SetMarketState(StateClosed)
+  Closed --> PreOpen: SetMarketState(StatePreOpen)
+
+  note right of Continuous
+    - Limit/Market/Iceberg 走连续撮合
+    - Stop/TakeProfit 进入 triggers
+    - 价格更新触发 triggers 检查
+  end note

@@ -28,16 +28,7 @@ func NormalizeSymbol(s string) string {
 
 // startIngestionWorker initializes and starts the ingestion connectors
 func (a *App) startIngestionWorker(ctx context.Context) {
-	targets := []struct {
-		Exchange string
-		Symbol   string
-	}{
-		{"binance", "btcusdt"},
-		{"okx", "BTC-USDT"},
-		{"bybit", "BTCUSDT"},
-		{"coinbase", "BTC-USD"},
-		{"kraken", "XBT/USD"},
-	}
+	targets := a.ingestionTargets()
 
 	for _, target := range targets {
 		t := target

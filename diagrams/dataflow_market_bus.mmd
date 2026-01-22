@@ -1,0 +1,40 @@
+flowchart LR
+  subgraph EX[交易所]
+    E1[Binance]
+    E2[OKX]
+    E3[Bybit]
+    E4[Coinbase]
+    E5[Kraken]
+  end
+
+  subgraph IN[接入与归一化]
+    C[Connectors]
+    N[NormalizeSymbol]
+  end
+
+  subgraph JS[NATS JetStream]
+    R[market.raw.exchange.symbol]
+    K[market.kline.period.symbol]
+  end
+
+  subgraph CORE[处理/服务]
+    KP[KlineProcessor]
+    AS[AlertService]
+    PE[PaperEngine]
+    SR[StrategyRunner]
+    PG[PushGateway]
+  end
+
+  subgraph DB[TimescaleDB]
+    TBL1[(trades)]
+    TBL2[(klines)]
+  end
+
+  EX --> C --> N --> R
+  R --> KP --> K
+  R -->|durable trade_saver| TBL1
+  K -->|durable kline_saver| TBL2
+  K --> AS
+  K --> PE
+  K --> SR
+  K --> PG

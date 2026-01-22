@@ -1,0 +1,30 @@
+flowchart TD
+  subgraph JS[NATS JetStream]
+    STREAM[MATCHING Stream\nmatching.event.*]
+    KV1[KV Bucket: MATCHING_SNAPSHOT]
+    KV2[KV Bucket: MATCHING_LEASE (TTL)]
+  end
+
+  subgraph App[Backend Instances]
+    A1[Instance A]
+    A2[Instance B]
+  end
+
+  subgraph Sym[Symbol Leader Loop (per symbol)]
+    ACQ[Acquire lease(key=symbol)]
+    REC[RecoverSymbol(snapshot + WAL tail)]
+    RES[Engine.Restore(symbol, snap)]
+    WALP[StartWALPump\nengine.Events -> STREAM]
+    SNAPP[StartSnapshotPump\nCaptureSnapshot -> KV1]
+    RUN[Process orders\n(single-writer worker)]
+  end
+
+  A1 --> ACQ
+  A2 --> ACQ
+  ACQ -->|success| REC --> RES --> WALP --> RUN
+  RES --> SNAPP
+  ACQ -->|fail| RETRY[Sleep + retry]
+
+  WALP --> STREAM
+  SNAPP --> KV1
+  ACQ --> KV2

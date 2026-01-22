@@ -1,0 +1,26 @@
+sequenceDiagram
+  autonumber
+  participant FE as Frontend
+  participant API as Alert API (Gin)
+  participant DB as TimescaleDB
+  participant AS as AlertService
+  participant JS as JetStream
+  participant WS as PushGateway
+
+  FE->>API: POST /api/v1/alerts (JWT)
+  API->>DB: INSERT alerts (is_active=true)
+  API-->>FE: 200 OK
+
+  AS->>DB: Load active alerts (startup)
+  AS->>JS: Subscribe market.kline.1m.*
+  JS-->>AS: Kline msg
+  AS->>AS: Evaluate rules
+
+  alt Triggered
+    AS->>JS: Publish notification.user.{userID}
+    AS->>DB: UPDATE alerts set is_active=false
+    JS-->>WS: Msg(notification.user.*)
+    WS-->>FE: push notification
+  else Not triggered
+    AS-->>AS: no-op
+  end
