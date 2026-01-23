@@ -1,29 +1,29 @@
 flowchart TD
-  subgraph JS[NATS JetStream]
-    STREAM[MATCHING Stream\nmatching.event.*]
-    KV1[KV Bucket: MATCHING_SNAPSHOT]
-    KV2[KV Bucket: MATCHING_LEASE (TTL)]
+  subgraph JS["NATS JetStream"]
+    STREAM["MATCHING Stream<br/>matching.event.*"]
+    KV1["KV Bucket: MATCHING_SNAPSHOT"]
+    KV2["KV Bucket: MATCHING_LEASE<br/>TTL"]
   end
 
-  subgraph App[Backend Instances]
-    A1[Instance A]
-    A2[Instance B]
+  subgraph App["Backend Instances"]
+    A1["Instance A"]
+    A2["Instance B"]
   end
 
-  subgraph Sym[Symbol Leader Loop (per symbol)]
-    ACQ[Acquire lease(key=symbol)]
-    REC[RecoverSymbol(snapshot + WAL tail)]
-    RES[Engine.Restore(symbol, snap)]
-    WALP[StartWALPump\nengine.Events -> STREAM]
-    SNAPP[StartSnapshotPump\nCaptureSnapshot -> KV1]
-    RUN[Process orders\n(single-writer worker)]
+  subgraph Sym["Symbol Leader Loop<br/>per symbol"]
+    ACQ["Acquire lease<br/>key=symbol"]
+    REC["RecoverSymbol<br/>snapshot + WAL tail"]
+    RES["Engine.Restore<br/>symbol, snap"]
+    WALP["StartWALPump<br/>engine.Events -> STREAM"]
+    SNAPP["StartSnapshotPump<br/>CaptureSnapshot -> KV1"]
+    RUN["Process orders<br/>single-writer worker"]
   end
 
   A1 --> ACQ
   A2 --> ACQ
   ACQ -->|success| REC --> RES --> WALP --> RUN
   RES --> SNAPP
-  ACQ -->|fail| RETRY[Sleep + retry]
+  ACQ -->|fail| RETRY["Sleep + retry"]
 
   WALP --> STREAM
   SNAPP --> KV1
