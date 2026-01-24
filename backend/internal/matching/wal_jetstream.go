@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"quant-trader/internal/model"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -30,7 +31,7 @@ func ensureMatchingEventStream(js nats.JetStreamContext) error {
 	}
 	_, err = js.AddStream(&nats.StreamConfig{
 		Name:      "MATCHING",
-		Subjects:  []string{"matching.event.*"},
+		Subjects:  []string{fmt.Sprintf("%s.*", model.SubjectMatchingEvent)},
 		Storage:   nats.FileStorage,
 		Retention: nats.LimitsPolicy,
 		MaxAge:    7 * 24 * time.Hour,
@@ -39,7 +40,7 @@ func ensureMatchingEventStream(js nats.JetStreamContext) error {
 }
 
 func (w *JetStreamWAL) Append(ev Event) error {
-	subject := fmt.Sprintf("matching.event.%s", ev.Symbol)
+	subject := fmt.Sprintf("%s.%s", model.SubjectMatchingEvent, ev.Symbol)
 	data, err := json.Marshal(ev)
 	if err != nil {
 		return err
@@ -49,7 +50,7 @@ func (w *JetStreamWAL) Append(ev Event) error {
 }
 
 func (w *JetStreamWAL) Load(symbol string, afterSeq uint64) ([]Event, error) {
-	subject := fmt.Sprintf("matching.event.%s", symbol)
+	subject := fmt.Sprintf("%s.%s", model.SubjectMatchingEvent, symbol)
 	sub, err := w.js.PullSubscribe(subject, "", nats.BindStream("MATCHING"))
 	if err != nil {
 		return nil, err

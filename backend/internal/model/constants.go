@@ -14,9 +14,24 @@ const (
 
 // Order Status constants
 const (
-	OrderStatusOpen      = "open"
-	OrderStatusFilled    = "filled"
-	OrderStatusCancelled = "cancelled"
+	OrderStatusNew               = "new"
+	OrderStatusOpen              = "open"
+	OrderStatusPartiallyFilled   = "partially_filled"
+	OrderStatusFilled            = "filled"
+	OrderStatusCancelled         = "cancelled"
+	OrderStatusRejected          = "rejected"
+	OrderStatusExpired           = "expired"
+)
+
+// Event Type constants
+const (
+	EventTypeSubmit      = "submit"
+	EventTypeCancel      = "cancel"
+	EventTypeTrigger     = "trigger"
+	EventTypeTrade       = "trade"
+	EventTypeOrderUpdate = "order_update"
+	EventTypeReject      = "reject"
+	EventTypeAlert       = "alert"
 )
 
 // Subscription Tier constants
@@ -54,6 +69,8 @@ const (
 const (
 	SubjectMarketRaw      = "market.raw"
 	SubjectMarketKline    = "market.kline"
+	SubjectMatchingEvent  = "matching.event"
+	SubjectPaperEvent     = "paper.event"
 	SubjectStrategySignal = "strategy.signal"
 )
 

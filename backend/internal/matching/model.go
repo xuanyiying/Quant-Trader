@@ -21,6 +21,10 @@ func (s OrderSide) String() string {
 	return "sell"
 }
 
+func (s OrderSide) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + s.String() + `"`), nil
+}
+
 // OrderType defines the type of order
 type OrderType int
 
@@ -34,6 +38,31 @@ const (
 	TypeIceberg
 )
 
+func (t OrderType) String() string {
+	switch t {
+	case TypeLimit:
+		return "limit"
+	case TypeMarket:
+		return "market"
+	case TypeFOK:
+		return "fok"
+	case TypeIOC:
+		return "ioc"
+	case TypeStop:
+		return "stop"
+	case TypeTakeProfit:
+		return "take_profit"
+	case TypeIceberg:
+		return "iceberg"
+	default:
+		return "unknown"
+	}
+}
+
+func (t OrderType) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + t.String() + `"`), nil
+}
+
 // OrderStatus represents the current state of an order
 type OrderStatus int
 
@@ -46,6 +75,31 @@ const (
 	StatusCanceled
 	StatusRejected
 )
+
+func (s OrderStatus) String() string {
+	switch s {
+	case StatusNew:
+		return "new"
+	case StatusOpen:
+		return "open"
+	case StatusPartiallyFilled:
+		return "partially_filled"
+	case StatusPartiallyFilledCanceled:
+		return "partially_filled_canceled"
+	case StatusFilled:
+		return "filled"
+	case StatusCanceled:
+		return "cancelled"
+	case StatusRejected:
+		return "rejected"
+	default:
+		return "unknown"
+	}
+}
+
+func (s OrderStatus) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + s.String() + `"`), nil
+}
 
 // Order represents an instruction to buy or sell
 type Order struct {
@@ -221,6 +275,31 @@ const (
 	EventReject
 	EventAlert
 )
+
+func (t EventType) String() string {
+	switch t {
+	case EventSubmit:
+		return "submit"
+	case EventCancel:
+		return "cancel"
+	case EventTrigger:
+		return "trigger"
+	case EventTrade:
+		return "trade"
+	case EventOrderUpdate:
+		return "order_update"
+	case EventReject:
+		return "reject"
+	case EventAlert:
+		return "alert"
+	default:
+		return "unknown"
+	}
+}
+
+func (t EventType) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + t.String() + `"`), nil
+}
 
 type OrderRecord struct {
 	ID                  string          `json:"id"`

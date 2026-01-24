@@ -208,7 +208,53 @@ func (e *PaperEngine) flushBatch(ctx context.Context, batch []Order) {
 		e.logger.Error("failed to commit batch transaction", zap.Error(err))
 		return
 	}
+
+	// Publish events after successful commit
+	for _, o := range batch {
+		e.publishEvent(model.EventTypeTrade, o)
+	}
+
 	e.logger.Info("paper order batch flushed", zap.Int("count", len(batch)))
+}
+
+func (e *PaperEngine) publishEvent(eventType string, o Order) {
+	ev := model.Event{
+		Type:      eventType,
+		Symbol:    o.Symbol,
+		Timestamp: time.Now().UnixNano() / int64(time.Millisecond),
+		Order: &model.Order{
+			ID:          fmt.Sprintf("%d", o.ID),
+			UserID:      o.UserID,
+			Symbol:      o.Symbol,
+			Side:        o.Side,
+			Type:        o.Type,
+			Price:       o.Price,
+			Qty:         o.Qty,
+			FilledQty:   o.Qty, // For now assume full fill in paper
+			FilledPrice: o.FilledPrice,
+			Status:      o.Status,
+			Timestamp:   time.Now().UnixNano(),
+		},
+	}
+
+	if eventType == model.EventTypeTrade {
+		ev.Execution = &model.Execution{
+			ID:        fmt.Sprintf("exec-%d-%d", o.ID, ev.Timestamp),
+			Symbol:    o.Symbol,
+			Price:     o.FilledPrice,
+			Qty:       o.Qty,
+			Side:      o.Side,
+			Timestamp: ev.Timestamp,
+		}
+		ev.Order.Status = model.OrderStatusFilled
+	}
+
+	subject := fmt.Sprintf("%s.%s", model.SubjectPaperEvent, o.Symbol)
+	data, _ := json.Marshal(ev)
+	_, err := e.js.Publish(subject, data)
+	if err != nil {
+		e.logger.Error("failed to publish paper event", zap.Error(err))
+	}
 }
 
 func (e *PaperEngine) PlaceOrder(ctx context.Context, o Order) (int64, error) {
@@ -250,6 +296,8 @@ func (e *PaperEngine) PlaceOrder(ctx context.Context, o Order) (int64, error) {
 	e.mu.Lock()
 	e.orders[o.Symbol] = append(e.orders[o.Symbol], o)
 	e.mu.Unlock()
+
+	e.publishEvent(model.EventTypeSubmit, o)
 
 	return id, nil
 }

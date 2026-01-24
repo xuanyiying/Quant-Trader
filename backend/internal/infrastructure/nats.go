@@ -1,6 +1,8 @@
 package infrastructure
 
 import (
+	"time"
+
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
@@ -21,6 +23,22 @@ func InitNATS(url string, logger *zap.Logger) (*nats.Conn, nats.JetStreamContext
 		Name:     "MARKET",
 		Subjects: []string{"market.raw.*.*", "market.kline.*.*"},
 	})
+	// ... (existing MARKET stream logic)
+
+	// Create PAPER stream for paper trading events
+	_, err = js.AddStream(&nats.StreamConfig{
+		Name:      "PAPER",
+		Subjects:  []string{"paper.event.*"},
+		Storage:   nats.FileStorage,
+		Retention: nats.LimitsPolicy,
+		MaxAge:    24 * time.Hour,
+	})
+	if err != nil {
+		_, _ = js.UpdateStream(&nats.StreamConfig{
+			Name:     "PAPER",
+			Subjects: []string{"paper.event.*"},
+		})
+	}
 	if err != nil {
 		// If stream exists, we might need to update it
 		_, err = js.UpdateStream(&nats.StreamConfig{
