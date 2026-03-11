@@ -43,9 +43,12 @@ const (
 
 // Subscription Status constants
 const (
-	SubscriptionStatusActive   = "active"
+	SubscriptionStatusActive    = "active"
 	SubscriptionStatusCanceled = "canceled"
-	SubscriptionStatusExpired  = "expired"
+	SubscriptionStatusExpired   = "expired"
+	SubscriptionStatusPastDue   = "past_due"
+	SubscriptionStatusTrialing  = "trialing"
+	SubscriptionStatusUnpaid   = "unpaid"
 )
 
 // KLine Period constants

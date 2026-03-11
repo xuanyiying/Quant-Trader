@@ -25,6 +25,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 // App defines the application structure and its dependencies
@@ -32,6 +33,7 @@ type App struct {
 	Config       *config.Config
 	Logger       *zap.Logger
 	DB           *pgxpool.Pool
+	GormDB       *gorm.DB
 	NC           *nats.Conn
 	JS           nats.JetStreamContext
 	PushGateway  *push.PushGateway
@@ -71,6 +73,13 @@ func (a *App) Init(ctx context.Context) error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	a.DB = dbPool
+
+	dbConfig := config.NewDBConfig(a.Config.DB_DSN)
+	gormDB, err := dbConfig.NewGORM()
+	if err != nil {
+		return fmt.Errorf("failed to connect to database (GORM): %w", err)
+	}
+	a.GormDB = gormDB
 
 	if err := a.initDatabase(ctx); err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
@@ -194,7 +203,7 @@ func (a *App) setupRouter() *gin.Engine {
 		c.String(http.StatusOK, "ok")
 	})
 
-	apiHandler := api.NewHandler(a.DB, a.Logger)
+	apiHandler := api.NewHandler(a.DB, a.GormDB, a.Logger)
 
 	v1 := r.Group("/api/v1")
 	{
