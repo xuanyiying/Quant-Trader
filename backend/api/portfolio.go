@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -10,32 +9,22 @@ import (
 func (h *Handler) GetPortfolios(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 
-	rows, err := h.db.Query(c.Request.Context(),
-		"SELECT id, name, created_at FROM portfolios WHERE user_id = $1", userID)
+	portfolios, err := h.bizPortfolio.GetByUserID(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch portfolios"})
 		return
 	}
-	defer rows.Close()
 
-	var portfolios []map[string]interface{}
-	for rows.Next() {
-		var (
-			id   int64
-			name string
-			cat  time.Time
-		)
-		if err := rows.Scan(&id, &name, &cat); err != nil {
-			continue
+	result := make([]map[string]interface{}, len(portfolios))
+	for i, p := range portfolios {
+		result[i] = map[string]interface{}{
+			"id":         p.ID,
+			"name":       p.Name,
+			"created_at": p.CreatedAt,
 		}
-		portfolios = append(portfolios, map[string]interface{}{
-			"id":         id,
-			"name":       name,
-			"created_at": cat,
-		})
 	}
 
-	c.JSON(http.StatusOK, portfolios)
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *Handler) CreatePortfolio(c *gin.Context) {
@@ -49,23 +38,19 @@ func (h *Handler) CreatePortfolio(c *gin.Context) {
 		return
 	}
 
-	var portfolioID int64
-	err := h.db.QueryRow(c.Request.Context(),
-		"INSERT INTO portfolios (user_id, name) VALUES ($1, $2) RETURNING id",
-		userID, req.Name).Scan(&portfolioID)
-
+	portfolio, err := h.bizPortfolio.Create(c.Request.Context(), userID, req.Name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create portfolio"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"id": portfolioID})
+	c.JSON(http.StatusCreated, gin.H{"id": portfolio.ID})
 }
 
 func (h *Handler) GetPortfolioReport(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 
-	report, err := h.analytics.GetPortfolioReport(c.Request.Context(), userID)
+	report, err := h.bizPortfolio.GetReport(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate report"})
 		return

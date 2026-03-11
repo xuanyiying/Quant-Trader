@@ -2,15 +2,13 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"quant-trader/internal/engine"
+	"quant-trader/internal/biz"
 	"quant-trader/internal/model"
 	"quant-trader/internal/storage"
-	"quant-trader/internal/strategy"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
@@ -22,25 +20,11 @@ func (h *Handler) GetHistoryKLines(c *gin.Context) {
 	symbol = strings.ReplaceAll(symbol, "/", "")
 	period := c.DefaultQuery("period", model.Period1m)
 
-	rows, err := h.db.Query(c.Request.Context(),
-		fmt.Sprintf("SELECT symbol, exchange, open, high, low, close, volume, time FROM klines WHERE symbol = $1 AND period = $2 ORDER BY time DESC LIMIT %d", model.DefaultHistoryLimit),
-		symbol, period)
+	klines, err := h.bizKline.GetLatest(c.Request.Context(), symbol, period, model.DefaultHistoryLimit)
 	if err != nil {
 		h.logger.Error("failed to query klines", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
-	}
-	defer rows.Close()
-
-	klines := make([]model.KLine, 0)
-	for rows.Next() {
-		var k model.KLine
-		if err := rows.Scan(&k.Symbol, &k.Exchange, &k.Open, &k.High, &k.Low, &k.Close, &k.Volume, &k.Timestamp); err != nil {
-			h.logger.Error("failed to scan kline", zap.Error(err))
-			continue
-		}
-		k.Period = period
-		klines = append(klines, k)
 	}
 
 	c.JSON(http.StatusOK, klines)
@@ -64,36 +48,20 @@ func (h *Handler) RunBacktest(c *gin.Context) {
 	symbol := strings.ReplaceAll(strings.ToUpper(req.Symbol), "-", "")
 	symbol = strings.ReplaceAll(symbol, "/", "")
 
-	// 1. Fetch history data for backtest
-	rows, err := h.db.Query(c.Request.Context(),
-		"SELECT symbol, exchange, open, high, low, close, volume, time FROM klines WHERE symbol = $1 AND time BETWEEN $2 AND $3 ORDER BY time ASC",
-		symbol, req.StartTime, req.EndTime)
+	report, err := h.bizKline.RunBacktest(c.Request.Context(), biz.BacktestInput{
+		Symbol:         symbol,
+		StrategyType:   req.StrategyType,
+		Config:         req.Config,
+		InitialBalance: req.InitialBalance,
+		StartTime:      req.StartTime,
+		EndTime:        req.EndTime,
+	})
+
 	if err != nil {
-		h.logger.Error("failed to fetch history for backtest", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch data"})
+		h.logger.Error("failed to run backtest", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	defer rows.Close()
-
-	klines := make([]model.KLine, 0)
-	for rows.Next() {
-		var k model.KLine
-		if err := rows.Scan(&k.Symbol, &k.Exchange, &k.Open, &k.High, &k.Low, &k.Close, &k.Volume, &k.Timestamp); err != nil {
-			continue
-		}
-		klines = append(klines, k)
-	}
-
-	// 2. Setup Strategy
-	strat, err := strategy.NewStrategy(req.StrategyType, req.Config)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 3. Run Backtest
-	tester := engine.NewBacktester(strat, req.InitialBalance)
-	report := tester.Run(klines)
 
 	c.JSON(http.StatusOK, report)
 }
@@ -113,7 +81,6 @@ func (h *Handler) TriggerBackfill(c *gin.Context) {
 
 	backfiller := storage.NewHistoryBackfiller(h.db, h.logger)
 
-	// Async run backfill
 	go func() {
 		ctx := context.Background()
 		var err error

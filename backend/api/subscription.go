@@ -4,8 +4,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"quant-trader/internal/model"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,31 +11,18 @@ import (
 func (h *Handler) GetSubscription(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 
-	var sub struct {
-		TierName   string    `json:"tier_name"`
-		MaxSymbols int       `json:"max_symbols"`
-		Status     string    `json:"status"`
-		ExpiresAt  time.Time `json:"expires_at"`
-	}
-
-	err := h.db.QueryRow(c.Request.Context(),
-		`SELECT t.name, t.max_symbols, s.status, s.expires_at 
-		 FROM user_subscriptions s 
-		 JOIN subscription_tiers t ON s.tier_id = t.id 
-		 WHERE s.user_id = $1`, userID).Scan(&sub.TierName, &sub.MaxSymbols, &sub.Status, &sub.ExpiresAt)
-
+	info, err := h.bizSubscription.GetSubscription(c.Request.Context(), userID)
 	if err != nil {
-		// Return default Free tier info if no record
-		c.JSON(http.StatusOK, gin.H{
-			"tier_name":   model.TierFree,
-			"max_symbols": 1,
-			"status":      model.SubscriptionStatusActive,
-			"expires_at":  time.Now().AddDate(99, 0, 0),
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get subscription"})
 		return
 	}
 
-	c.JSON(http.StatusOK, sub)
+	c.JSON(http.StatusOK, gin.H{
+		"tier_name":   info.TierName,
+		"max_symbols": info.MaxSymbols,
+		"status":      info.Status,
+		"expires_at":  info.ExpiresAt,
+	})
 }
 
 func (h *Handler) CreateCheckoutSession(c *gin.Context) {

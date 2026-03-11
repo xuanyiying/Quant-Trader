@@ -1,11 +1,12 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"quant-trader/internal/model"
+	"quant-trader/internal/biz"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
@@ -14,7 +15,7 @@ import (
 func (h *Handler) GetAlerts(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 
-	alerts, err := h.alert.GetByUserID(c.Request.Context(), userID)
+	alerts, err := h.bizAlert.ListByUserID(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch alerts"})
 		return
@@ -23,12 +24,12 @@ func (h *Handler) GetAlerts(c *gin.Context) {
 	result := make([]map[string]interface{}, len(alerts))
 	for i, a := range alerts {
 		result[i] = map[string]interface{}{
-			"id":              a.ID,
-			"symbol":          a.Symbol,
-			"condition_type":  a.Condition,
-			"target_value":    a.Price,
-			"is_triggered":    a.IsTriggered,
-			"created_at":      a.CreatedAt,
+			"id":             a.ID,
+			"symbol":         a.Symbol,
+			"condition_type": a.Condition,
+			"target_value":   a.Price,
+			"is_triggered":   a.IsTriggered,
+			"created_at":     a.CreatedAt,
 		}
 	}
 
@@ -48,15 +49,7 @@ func (h *Handler) CreateAlert(c *gin.Context) {
 		return
 	}
 
-	alert := &model.Alert{
-		UserID:     userID,
-		Symbol:     strings.ToUpper(req.Symbol),
-		Condition:  req.ConditionType,
-		Price:      req.TargetValue,
-		IsTriggered: false,
-	}
-
-	err := h.alert.Create(c.Request.Context(), alert)
+	alert, err := h.bizAlert.Create(c.Request.Context(), userID, strings.ToUpper(req.Symbol), req.ConditionType, req.TargetValue)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create alert"})
 		return
@@ -73,14 +66,11 @@ func (h *Handler) DeleteAlert(c *gin.Context) {
 		return
 	}
 
-	alert, err := h.alert.GetByID(c.Request.Context(), alertID)
-	if err != nil || alert.UserID != userID {
-		c.JSON(http.StatusNotFound, gin.H{"error": "alert not found"})
-		return
-	}
-
-	err = h.alert.Delete(c.Request.Context(), alertID)
-	if err != nil {
+	if err := h.bizAlert.Delete(c.Request.Context(), userID, alertID); err != nil {
+		if errors.Is(err, biz.ErrAlertNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete alert"})
 		return
 	}

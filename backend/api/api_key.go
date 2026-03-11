@@ -1,20 +1,15 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
-	"time"
-
-	"quant-trader/internal/model"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func (h *Handler) ListAPIKeys(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 
-	keys, err := h.apiKey.GetByUserID(c.Request.Context(), userID)
+	keys, err := h.bizAPIKey.ListByUserID(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch API keys"})
 		return
@@ -45,27 +40,15 @@ func (h *Handler) CreateAPIKey(c *gin.Context) {
 		return
 	}
 
-	keyID := fmt.Sprintf("qt_%d_%d", userID, time.Now().Unix())
-	rawSecret := fmt.Sprintf("sec_%d_%d", userID, time.Now().UnixNano())
-	hash, _ := bcrypt.GenerateFromPassword([]byte(rawSecret), bcrypt.DefaultCost)
-
-	key := &model.APIKey{
-		UserID:    userID,
-		Name:      req.Name,
-		KeyPrefix: keyID,
-		KeyHash:   string(hash),
-		IsActive:  true,
-	}
-
-	err := h.apiKey.Create(c.Request.Context(), key)
+	result, err := h.bizAPIKey.Create(c.Request.Context(), userID, req.Name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create API key"})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"key_id":     keyID,
-		"key_secret": rawSecret,
+		"key_id":     result.KeyID,
+		"key_secret": result.KeySecret,
 		"message":    "Store the secret safely, it will not be shown again",
 	})
 }

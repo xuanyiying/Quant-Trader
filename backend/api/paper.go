@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strings"
 
+	"quant-trader/internal/biz"
+
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 )
@@ -11,65 +13,35 @@ import (
 func (h *Handler) GetPaperAccount(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 
-	var balance decimal.Decimal
-	err := h.db.QueryRow(c.Request.Context(), "SELECT balance FROM paper_accounts WHERE user_id = $1", userID).Scan(&balance)
+	account, err := h.bizPaper.GetOrCreateAccount(c.Request.Context(), userID)
 	if err != nil {
-		// Initialize with 100,000 if not exists
-		balance = decimal.NewFromFloat(100000.0)
-		_, _ = h.db.Exec(c.Request.Context(), "INSERT INTO paper_accounts (user_id, balance) VALUES ($1, $2) ON CONFLICT DO NOTHING", userID, balance)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get account"})
+		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"balance": balance})
+	c.JSON(http.StatusOK, gin.H{"balance": account.Balance})
 }
 
 func (h *Handler) ResetPaperAccount(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
-	initialBalance := decimal.NewFromFloat(100000.0)
 
-	tx, err := h.db.Begin(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start transaction"})
-		return
-	}
-	defer tx.Rollback(c.Request.Context())
-
-	// 1. Reset balance
-	_, err = tx.Exec(c.Request.Context(),
-		"INSERT INTO paper_accounts (user_id, balance) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET balance = $2",
-		userID, initialBalance)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reset balance"})
+	if err := h.bizPaper.ResetAccount(c.Request.Context(), userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 2. Clear positions
-	_, err = tx.Exec(c.Request.Context(), "DELETE FROM paper_positions WHERE user_id = $1", userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to clear positions"})
-		return
-	}
-
-	// 3. Clear open orders
-	_, err = tx.Exec(c.Request.Context(), "UPDATE paper_orders SET status = 'cancelled' WHERE user_id = $1 AND status = 'open'", userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to clear orders"})
-		return
-	}
-
-	if err := tx.Commit(c.Request.Context()); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to commit transaction"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"balance": initialBalance, "message": "account reset successful"})
+	c.JSON(http.StatusOK, gin.H{
+		"balance": decimal.NewFromFloat(100000),
+		"message": "account reset successful",
+	})
 }
 
 func (h *Handler) CreatePaperOrder(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 	var req struct {
 		Symbol string          `json:"symbol" binding:"required"`
-		Side   string          `json:"side" binding:"required"` // buy, sell
-		Type   string          `json:"type" binding:"required"` // market, limit
+		Side   string          `json:"side" binding:"required"`
+		Type   string          `json:"type" binding:"required"`
 		Price  decimal.Decimal `json:"price"`
 		Qty    decimal.Decimal `json:"qty" binding:"required"`
 	}
@@ -79,52 +51,44 @@ func (h *Handler) CreatePaperOrder(c *gin.Context) {
 		return
 	}
 
-	// Risk Check
-	if err := h.risk.PreTradeCheck(c.Request.Context(), userID, req.Symbol, req.Side, req.Qty, req.Price); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": "risk limit reached: " + err.Error()})
-		return
-	}
-
-	var orderID int64
-	err := h.db.QueryRow(c.Request.Context(),
-		"INSERT INTO paper_orders (user_id, symbol, side, type, price, qty) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-		userID, strings.ToUpper(req.Symbol), req.Side, req.Type, req.Price, req.Qty).Scan(&orderID)
+	order, err := h.bizPaper.CreateOrder(c.Request.Context(), userID, biz.CreateOrderInput{
+		Symbol: strings.ToUpper(req.Symbol),
+		Side:   req.Side,
+		Type:   req.Type,
+		Price:  req.Price,
+		Qty:    req.Qty,
+	})
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to place paper order"})
+		switch err {
+		case biz.ErrInvalidOrderSide, biz.ErrInvalidOrderType:
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"id": orderID})
+	c.JSON(http.StatusCreated, gin.H{"id": order.ID})
 }
 
 func (h *Handler) GetPaperPositions(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 
-	rows, err := h.db.Query(c.Request.Context(),
-		"SELECT symbol, qty, avg_price FROM paper_positions WHERE user_id = $1 AND qty > 0", userID)
+	positions, err := h.bizPaper.GetPositions(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch positions"})
 		return
 	}
-	defer rows.Close()
 
-	positions := make([]map[string]interface{}, 0)
-	for rows.Next() {
-		var (
-			symbol   string
-			qty      decimal.Decimal
-			avgPrice decimal.Decimal
-		)
-		if err := rows.Scan(&symbol, &qty, &avgPrice); err != nil {
-			continue
+	result := make([]map[string]interface{}, len(positions))
+	for i, p := range positions {
+		result[i] = map[string]interface{}{
+			"symbol":    p.Symbol,
+			"qty":       p.Qty,
+			"avg_price": p.AvgPrice,
 		}
-		positions = append(positions, map[string]interface{}{
-			"symbol":    symbol,
-			"qty":       qty,
-			"avg_price": avgPrice,
-		})
 	}
 
-	c.JSON(http.StatusOK, positions)
+	c.JSON(http.StatusOK, result)
 }

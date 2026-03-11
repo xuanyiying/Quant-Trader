@@ -19,15 +19,20 @@ type Trade struct {
 
 // KLine (Candle) 代表一根K线
 type KLine struct {
-	Symbol    string          `json:"symbol" db:"symbol"`
-	Exchange  string          `json:"exchange" db:"exchange"`
-	Period    string          `json:"period" db:"period"` // "1m", "5m", "15m", "1h", "4h", "1d"
-	Open      decimal.Decimal `json:"o" db:"open"`
-	High      decimal.Decimal `json:"h" db:"high"`
-	Low       decimal.Decimal `json:"l" db:"low"`
-	Close     decimal.Decimal `json:"c" db:"close"`
-	Volume    decimal.Decimal `json:"v" db:"volume"`
-	Timestamp time.Time       `json:"t" db:"time"`
+	ID        int64           `gorm:"primaryKey" json:"id"`
+	Symbol    string          `gorm:"index:idx_symbol_period,priority:1" json:"symbol"`
+	Exchange  string          `gorm:"index:idx_symbol_period,priority:2" json:"exchange"`
+	Period    string          `gorm:"index:idx_symbol_period,priority:3" json:"period"`
+	Open      decimal.Decimal `gorm:"type:decimal(20,8)" json:"o"`
+	High      decimal.Decimal `gorm:"type:decimal(20,8)" json:"h"`
+	Low       decimal.Decimal `gorm:"type:decimal(20,8)" json:"l"`
+	Close     decimal.Decimal `gorm:"type:decimal(20,8)" json:"c"`
+	Volume    decimal.Decimal `gorm:"type:decimal(20,8)" json:"v"`
+	Timestamp time.Time      `gorm:"index" json:"t"`
+}
+
+func (KLine) TableName() string {
+	return "klines"
 }
 
 // SupportedPeriods 定义系统支持的 K 线周期
