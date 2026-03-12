@@ -12,7 +12,7 @@ export const API_ENDPOINTS = {
   },
   MARKET: {
     STRATEGIES: '/api/v1/market/strategies',
-    KLINES: (symbol: string, period: string) => `/api/v1/klines/${symbol}?period=${period}`,
+    KLINES: (symbol: string, period: string, limit?: number) => `/api/v1/klines/${symbol}?period=${period}${limit ? `&limit=${limit}` : ''}`,
   },
   MARKETPLACE: {
     STRATEGIES: '/api/v1/marketplace',

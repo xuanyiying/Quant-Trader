@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import Chart from './components/Chart';
 import AlertsManager from './components/AlertsManager';
 import StrategyMarketplace from './components/StrategyMarketplace';
@@ -9,6 +10,7 @@ import ChartControls from './components/ChartControls';
 import TradingPanel from './components/TradingPanel';
 import SignalFeed from './components/SignalFeed';
 import LoadingScreen from './components/LoadingScreen';
+import { GradientOrbs } from './components/animations';
 import { useMarketStore } from './store/useMarketStore';
 import { useDataStore } from './store/useDataStore';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -17,10 +19,12 @@ import { UI_CONFIG, PRICE_IDS, API_ENDPOINTS } from './constants';
 import { getErrorMessage } from './utils/errorHandler';
 import { showSuccess, showError, showConfirm } from './utils/notifications';
 import { safeParseFloat } from './utils/formatters';
+import './styles/animations.css';
 
 const App: React.FC = () => {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   const {
     symbol,
@@ -70,7 +74,8 @@ const App: React.FC = () => {
 
   const loadHistory = useCallback(async () => {
     try {
-      const response = await axios.get(API_ENDPOINTS.MARKET.KLINES(symbol, period));
+      // 请求500条K线数据，让图表显示更密集
+      const response = await axios.get(API_ENDPOINTS.MARKET.KLINES(symbol, period, 500));
       const data = response.data;
       if (Array.isArray(data)) {
         const mappedData = data
@@ -93,19 +98,34 @@ const App: React.FC = () => {
     }
   }, [symbol, period, setKLines]);
 
-  // Load initial data
+  // Load initial data with progress simulation
   useEffect(() => {
     const fetchData = async () => {
       if (!token) {
         setLoading(false);
         return;
       }
+      
+      // Simulate loading progress
+      const progressInterval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + Math.random() * 15;
+        });
+      }, 200);
+
       try {
         await Promise.all([loadHistory(), fetchAll()]);
+        setLoadingProgress(100);
+        setTimeout(() => setLoading(false), 500);
       } catch (error) {
         console.error('Fetch data failed:', error);
-      } finally {
         setLoading(false);
+      } finally {
+        clearInterval(progressInterval);
       }
     };
 
@@ -199,14 +219,18 @@ const App: React.FC = () => {
   }
 
   if (loading) {
-    return <LoadingScreen />;
+    return <LoadingScreen progress={loadingProgress} />;
   }
 
   const lastTradePrice = lastTrade ? safeParseFloat(lastTrade.price).toFixed(2) : null;
 
   return (
-    <div className="min-h-screen bg-background text-gray-200 selection:bg-blue-500/30">
-      <div className="max-w-[1600px] mx-auto p-4 lg:p-8 space-y-8">
+    <div className="min-h-screen bg-background text-gray-200 selection:bg-blue-500/30 relative">
+      {/* Background Effects */}
+      <GradientOrbs />
+      
+      {/* Main Content */}
+      <div className="relative z-10">
         <Header
           paperAccount={paperAccount}
           subscription={subscription}
@@ -217,45 +241,66 @@ const App: React.FC = () => {
           onUpgrade={handleUpgrade}
         />
 
-        <div className="grid grid-cols-12 gap-8">
-          {/* Main Content Area */}
-          <div className="col-span-12 lg:col-span-9 space-y-8">
-            {/* Chart Section */}
-            <div className="bg-card p-6 rounded-2xl shadow-xl border border-gray-800/50">
-              <ChartControls
+        <motion.main 
+          className="max-w-[1600px] mx-auto p-4 lg:p-8 space-y-8 pt-32"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="grid grid-cols-12 gap-8">
+            {/* Main Content Area */}
+            <motion.div 
+              className="col-span-12 lg:col-span-9 space-y-8"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              {/* Chart Section */}
+              <motion.div 
+                className="bg-card/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-gray-800/50"
+                whileHover={{ borderColor: 'rgba(59, 130, 246, 0.2)' }}
+                transition={{ duration: 0.3 }}
+              >
+                <ChartControls
+                  symbol={symbol}
+                  period={period}
+                  onSymbolChange={setSymbol}
+                  onPeriodChange={setPeriod}
+                  onRefresh={loadHistory}
+                  onBackfill={handleTriggerBackfill}
+                />
+                <div className="h-[500px] w-full">
+                  <Chart />
+                </div>
+              </motion.div>
+
+              {/* Trading Panel */}
+              <TradingPanel
                 symbol={symbol}
-                period={period}
-                onSymbolChange={setSymbol}
-                onPeriodChange={setPeriod}
-                onRefresh={loadHistory}
-                onBackfill={handleTriggerBackfill}
+                positions={positions}
+                lastTradePrice={lastTradePrice}
+                onCreateOrder={handleCreateOrder}
               />
-              <div className="h-[500px] w-full">
-                <Chart />
-              </div>
-            </div>
+            </motion.div>
 
-            {/* Trading Panel */}
-            <TradingPanel
-              symbol={symbol}
-              positions={positions}
-              lastTradePrice={lastTradePrice}
-              onCreateOrder={handleCreateOrder}
-            />
+            {/* Sidebar */}
+            <motion.div 
+              className="col-span-12 lg:col-span-3 space-y-8"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <StrategyMarketplace
+                strategies={strategies}
+                loading={dataLoading.strategies}
+                onPurchase={handlePurchaseStrategy}
+              />
+              <PortfolioReport report={portfolioReport} loading={dataLoading.report} />
+              <AlertsManager alerts={alerts} symbol={symbol} onRefresh={fetchAlerts} />
+              <SignalFeed signals={signals} />
+            </motion.div>
           </div>
-
-          {/* Sidebar */}
-          <div className="col-span-12 lg:col-span-3 space-y-8">
-            <StrategyMarketplace
-              strategies={strategies}
-              loading={dataLoading.strategies}
-              onPurchase={handlePurchaseStrategy}
-            />
-            <PortfolioReport report={portfolioReport} loading={dataLoading.report} />
-            <AlertsManager alerts={alerts} symbol={symbol} onRefresh={fetchAlerts} />
-            <SignalFeed signals={signals} />
-          </div>
-        </div>
+        </motion.main>
       </div>
     </div>
   );

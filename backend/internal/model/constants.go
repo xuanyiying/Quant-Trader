@@ -79,5 +79,6 @@ const (
 
 // Default settings
 const (
-	DefaultHistoryLimit = 100
+	DefaultHistoryLimit = 500
+	MaxHistoryLimit     = 1000 // 系统最大限制，防止性能问题
 )

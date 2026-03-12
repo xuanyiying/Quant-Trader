@@ -3,7 +3,6 @@ package connector
 import (
 	"context"
 	"encoding/json"
-	"net"
 	"net/http"
 	"net/url"
 	"quant-trader/internal/infrastructure"
@@ -65,11 +64,6 @@ func (o *OKXConnector) Run(ctx context.Context, tradeChan chan<- model.Trade) {
 		dialer := websocket.Dialer{
 			HandshakeTimeout: 10 * time.Second,
 			Proxy:            http.ProxyURL(o.proxy),
-		}
-		if o.proxy != nil {
-			dialer.NetDial = func(network, addr string) (net.Conn, error) {
-				return net.Dial(network, addr)
-			}
 		}
 		conn, _, err := dialer.Dial(url, nil)
 		if err != nil {

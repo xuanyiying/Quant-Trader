@@ -20,9 +20,23 @@ const Chart: React.FC = () => {
 
     const volumes = klines.map(k => parseFloat(k.v));
 
+    // 根据数据量动态调整显示范围
+    const dataLength = klines.length;
+    let zoomStart = 0;
+    if (dataLength > 200) {
+      zoomStart = 80; // 数据多的时候显示后20%
+    } else if (dataLength > 100) {
+      zoomStart = 70; // 数据中等的时候显示后30%
+    } else if (dataLength > 50) {
+      zoomStart = 50; // 数据少的时候显示后50%
+    } else {
+      zoomStart = 0;  // 数据很少的时候显示全部
+    }
+
     return {
       backgroundColor: CHART_CONFIG.BACKGROUND_COLOR,
-      animation: false,
+      animation: true,
+      animationDuration: 300,
       legend: {
         bottom: 10,
         left: 'center',
@@ -44,7 +58,7 @@ const Chart: React.FC = () => {
         {
           type: 'category',
           data: dates,
-          boundaryGap: false,
+          boundaryGap: true, // 改为true让K线有间距
           axisLine: { onZero: false, lineStyle: { color: '#444' } },
           splitLine: { show: false },
           min: 'dataMin',
@@ -54,7 +68,7 @@ const Chart: React.FC = () => {
           type: 'category',
           gridIndex: 1,
           data: dates,
-          boundaryGap: false,
+          boundaryGap: true,
           axisLine: { onZero: false, lineStyle: { color: '#444' } },
           axisTick: { show: false },
           splitLine: { show: false },
@@ -84,7 +98,7 @@ const Chart: React.FC = () => {
         {
           type: 'inside',
           xAxisIndex: [0, 1],
-          start: 50,
+          start: zoomStart,
           end: 100
         },
         {
@@ -92,7 +106,7 @@ const Chart: React.FC = () => {
           xAxisIndex: [0, 1],
           type: 'slider',
           top: '92%',
-          start: 50,
+          start: zoomStart,
           end: 100,
           textStyle: { color: '#888' }
         }
@@ -102,6 +116,7 @@ const Chart: React.FC = () => {
           name: 'K-Line',
           type: 'candlestick',
           data: candles,
+          barWidth: '60%', // 设置K线宽度
           itemStyle: {
             color: CHART_CONFIG.UP_COLOR,
             color0: CHART_CONFIG.DOWN_COLOR,
@@ -115,6 +130,7 @@ const Chart: React.FC = () => {
           xAxisIndex: 1,
           yAxisIndex: 1,
           data: volumes,
+          barWidth: '60%',
           itemStyle: {
             color: (params: { dataIndex: number }) => {
               const idx = params.dataIndex;

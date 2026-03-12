@@ -50,6 +50,20 @@ Quant-Trader is a production-grade algorithmic trading platform that combines hi
 
 ---
 
+## 📸 Screenshots
+
+### Trading Dashboard
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xuanyiying/quant-trader/main/assets/screenshot.png" alt="Quant-Trader Dashboard" width="900"/>
+</p>
+
+### K-Line Chart
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xuanyiying/quant-trader/main/assets/chart.png" alt="Quant-Trader K-Line Chart" width="900"/>
+</p>
+
+---
+
 ## Key Features
 
 ### 1. High-Performance Market Data Pipeline

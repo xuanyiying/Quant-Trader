@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"quant-trader/internal/infrastructure"
@@ -56,11 +55,6 @@ func (c *CoinbaseConnector) Run(ctx context.Context, tradeChan chan<- model.Trad
 		dialer := websocket.Dialer{
 			HandshakeTimeout: 10 * time.Second,
 			Proxy:            http.ProxyURL(c.proxy),
-		}
-		if c.proxy != nil {
-			dialer.NetDial = func(network, addr string) (net.Conn, error) {
-				return net.Dial(network, addr)
-			}
 		}
 		conn, _, err := dialer.Dial(url, nil)
 		if err != nil {

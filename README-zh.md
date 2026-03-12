@@ -50,6 +50,20 @@ Quant-Trader 是一个生产级的量化交易平台，结合了高性能的市�
 
 ---
 
+## 📸 运行截图
+
+### 交易仪表盘
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xuanyiying/quant-trader/main/assets/screenshot.png" alt="Quant-Trader 交易仪表盘" width="900"/>
+</p>
+
+### K线图表
+<p align="center">
+  <img src="https://raw.githubusercontent.com/xuanyiying/quant-trader/main/assets/chart.png" alt="Quant-Trader K线图表" width="900"/>
+</p>
+
+---
+
 ## 核心特性
 
 ### 1. 高性能市场数据管道

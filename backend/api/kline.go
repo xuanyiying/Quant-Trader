@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,7 +19,26 @@ func (h *Handler) GetHistoryKLines(c *gin.Context) {
 	symbol = strings.ReplaceAll(symbol, "/", "")
 	period := c.DefaultQuery("period", model.Period1m)
 
-	klines, err := h.bizKline.GetLatest(c.Request.Context(), symbol, period, model.DefaultHistoryLimit)
+	// 支持通过limit参数自定义返回的K线数量
+	limit := model.DefaultHistoryLimit
+	if limitStr := c.Query("limit"); limitStr != "" {
+		parsedLimit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit parameter: must be a valid integer"})
+			return
+		}
+		if parsedLimit <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit parameter: must be a positive integer"})
+			return
+		}
+		// 限制最大1000条，防止性能问题
+		if parsedLimit > 1000 {
+			parsedLimit = 1000
+		}
+		limit = parsedLimit
+	}
+
+	klines, err := h.bizKline.GetLatest(c.Request.Context(), symbol, period, limit)
 	if err != nil {
 		h.logger.Error("failed to query klines", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
