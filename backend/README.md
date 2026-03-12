@@ -2,7 +2,7 @@
 
 High-performance algorithmic trading engine built with Go, featuring real-time market data ingestion, paper trading simulation, and strategy execution.
 
----
+***
 
 ## 🚀 Key Features
 
@@ -27,21 +27,21 @@ High-performance algorithmic trading engine built with Go, featuring real-time m
 - **Alert System**: Flexible rule-based notification engine for price and technical triggers
 - **Backtesting Engine**: Historical data replay with performance metrics
 
----
+***
 
 ## 🛠 Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Language | Go 1.24+ |
-| Web Framework | Gin |
-| Database | PostgreSQL 15+, TimescaleDB |
-| Messaging | NATS JetStream |
-| Security | WebAssembly (WASM), JWT |
-| Payments | Stripe API |
-| Monitoring | Prometheus, Grafana |
+| Component     | Technology                  |
+| ------------- | --------------------------- |
+| Language      | Go 1.24+                    |
+| Web Framework | Gin                         |
+| Database      | PostgreSQL 15+, TimescaleDB |
+| Messaging     | NATS JetStream              |
+| Security      | WebAssembly (WASM), JWT     |
+| Payments      | Stripe API                  |
+| Monitoring    | Prometheus, Grafana         |
 
----
+***
 
 ## 🏗 System Architecture
 
@@ -78,7 +78,7 @@ graph TD
     HTTP --> TSDB & PE
 ```
 
----
+***
 
 ## 🏁 Quick Start
 
@@ -91,7 +91,7 @@ graph TD
 ### 1. Installation
 
 ```bash
-git clone https://github.com/your-repo/quant-trader.git
+git clone https://github.com/xuanyiying/quant-trader.git
 cd quant-trader/backend
 go mod download
 ```
@@ -132,70 +132,70 @@ go run cmd/main.go
 
 The API server will start on `http://localhost:8080`
 
----
+***
 
 ## 📡 API Endpoints
 
 ### Authentication
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/register` | Register new user |
-| POST | `/api/v1/login` | User login |
+| Method | Endpoint           | Description       |
+| ------ | ------------------ | ----------------- |
+| POST   | `/api/v1/register` | Register new user |
+| POST   | `/api/v1/login`    | User login        |
 
 ### Market Data
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/klines/:symbol` | Get historical K-lines |
-| GET | `/ws` | WebSocket for real-time updates |
+| Method | Endpoint                 | Description                     |
+| ------ | ------------------------ | ------------------------------- |
+| GET    | `/api/v1/klines/:symbol` | Get historical K-lines          |
+| GET    | `/ws`                    | WebSocket for real-time updates |
 
 ### Paper Trading
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/paper/account` | Get paper trading account |
-| POST | `/api/v1/paper/account/reset` | Reset paper account |
-| POST | `/api/v1/paper/orders` | Create paper order |
-| GET | `/api/v1/paper/positions` | Get open positions |
+| Method | Endpoint                      | Description               |
+| ------ | ----------------------------- | ------------------------- |
+| GET    | `/api/v1/paper/account`       | Get paper trading account |
+| POST   | `/api/v1/paper/account/reset` | Reset paper account       |
+| POST   | `/api/v1/paper/orders`        | Create paper order        |
+| GET    | `/api/v1/paper/positions`     | Get open positions        |
 
 ### Alerts
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/alerts` | List user alerts |
-| POST | `/api/v1/alerts` | Create new alert |
-| DELETE | `/api/v1/alerts/:id` | Delete alert |
+| Method | Endpoint             | Description      |
+| ------ | -------------------- | ---------------- |
+| GET    | `/api/v1/alerts`     | List user alerts |
+| POST   | `/api/v1/alerts`     | Create new alert |
+| DELETE | `/api/v1/alerts/:id` | Delete alert     |
 
 ### Portfolios
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/portfolios` | List portfolios |
-| POST | `/api/v1/portfolios` | Create portfolio |
+| Method | Endpoint             | Description      |
+| ------ | -------------------- | ---------------- |
+| GET    | `/api/v1/portfolios` | List portfolios  |
+| POST   | `/api/v1/portfolios` | Create portfolio |
 
 ### Marketplace
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/market/strategies` | List available strategies |
-| POST | `/api/v1/market/strategies/:id/purchase` | Purchase strategy |
+| Method | Endpoint                                 | Description               |
+| ------ | ---------------------------------------- | ------------------------- |
+| GET    | `/api/v1/market/strategies`              | List available strategies |
+| POST   | `/api/v1/market/strategies/:id/purchase` | Purchase strategy         |
 
 ### Backtest & Analytics
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/backtest` | Run backtest |
-| POST | `/api/v1/backfill` | Trigger historical data backfill |
-| GET | `/api/v1/analytics/portfolio` | Get portfolio analytics |
+| Method | Endpoint                      | Description                      |
+| ------ | ----------------------------- | -------------------------------- |
+| POST   | `/api/v1/backtest`            | Run backtest                     |
+| POST   | `/api/v1/backfill`            | Trigger historical data backfill |
+| GET    | `/api/v1/analytics/portfolio` | Get portfolio analytics          |
 
 ### Subscription
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/subscription` | Get subscription info |
+| Method | Endpoint               | Description           |
+| ------ | ---------------------- | --------------------- |
+| GET    | `/api/v1/subscription` | Get subscription info |
 
----
+***
 
 ## 📖 API Examples
 
@@ -222,6 +222,7 @@ curl -X POST http://localhost:8080/api/v1/login \
 ```
 
 Response:
+
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -271,33 +272,33 @@ ws.onmessage = (event) => {
 };
 ```
 
----
+***
 
 ## 🔧 Configuration Options
 
-| Environment Variable | Default | Description |
-|---------------------|---------|-------------|
-| `PORT` | `8080` | Server port |
-| `DB_DSN` | - | PostgreSQL connection string |
-| `NATS_URL` | `nats://localhost:4222` | NATS server URL |
-| `JWT_SECRET` | - | JWT signing key |
-| `STRIPE_SECRET_KEY` | - | Stripe API key |
-| `MATCHING_ENABLED` | `true` | Enable matching engine |
-| `MATCHING_LEASE_TTL` | `20s` | Order lease TTL |
-| `MATCHING_SNAPSHOT_EVERY` | `2s` | Snapshot interval |
+| Environment Variable      | Default                 | Description                  |
+| ------------------------- | ----------------------- | ---------------------------- |
+| `PORT`                    | `8080`                  | Server port                  |
+| `DB_DSN`                  | -                       | PostgreSQL connection string |
+| `NATS_URL`                | `nats://localhost:4222` | NATS server URL              |
+| `JWT_SECRET`              | -                       | JWT signing key              |
+| `STRIPE_SECRET_KEY`       | -                       | Stripe API key               |
+| `MATCHING_ENABLED`        | `true`                  | Enable matching engine       |
+| `MATCHING_LEASE_TTL`      | `20s`                   | Order lease TTL              |
+| `MATCHING_SNAPSHOT_EVERY` | `2s`                    | Snapshot interval            |
 
----
+***
 
 ## 📊 Performance Benchmark
 
-| Layer | Latency (P99) | Throughput |
-| :--- | :--- | :--- |
-| **Ingestion** | < 2ms | 50,000 trades/s |
-| **Aggregation** | < 5ms | 100 symbols (1m period) |
-| **Simulation** | < 10ms | 1,000 orders/s |
-| **Persistence** | < 20ms | 10,000 records/batch |
+| Layer           | Latency (P99) | Throughput              |
+| :-------------- | :------------ | :---------------------- |
+| **Ingestion**   | < 2ms         | 50,000 trades/s         |
+| **Aggregation** | < 5ms         | 100 symbols (1m period) |
+| **Simulation**  | < 10ms        | 1,000 orders/s          |
+| **Persistence** | < 20ms        | 10,000 records/batch    |
 
----
+***
 
 ## 📁 Project Structure
 
@@ -332,7 +333,7 @@ backend/
     └── migrations/           # Database migrations
 ```
 
----
+***
 
 ## 🔨 Development
 
@@ -355,12 +356,12 @@ cd scripts
 ./apply_all.sh
 ```
 
----
+***
 
 ## ⚖️ License
 
 Distributed under the MIT License. See `LICENSE` for more information.
 
----
+***
 
 *Quant-Trader - Empowering your strategy with professional infrastructure.*

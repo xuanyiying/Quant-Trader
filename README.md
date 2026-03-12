@@ -18,7 +18,28 @@
 
 ---
 
-## ⭐ Why Quant-Trader?
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [System Architecture](#system-architecture)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage Examples](#usage-examples)
+- [API Documentation](#api-documentation)
+- [Performance Benchmarks](#performance-benchmarks)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Overview
+
+Quant-Trader is a production-grade algorithmic trading platform that combines high-performance market data processing, sophisticated trading simulation, and enterprise-level risk management. Built with Go and React, it provides a complete infrastructure for quantitative trading strategies from development to deployment.
+
+### Why Quant-Trader?
 
 - **🚀 Enterprise-Grade Performance**: Sub-millisecond matching engine with in-memory order book
 - **🔄 Multi-Exchange Support**: Native WebSocket integration with Binance, OKX, Bybit, Coinbase, Kraken
@@ -29,36 +50,7 @@
 
 ---
 
-## 📂 Project Structure
-
-```
-quant-trader/
-├── backend/                    # High-performance Go trading engine
-│   ├── api/                   # REST API handlers (Gin)
-│   ├── cmd/                   # Application entry point
-│   ├── internal/
-│   │   ├── connector/        # Exchange WebSocket connectors
-│   │   ├── engine/            # Strategy execution engine
-│   │   ├── matching/          # High-performance matching engine
-│   │   ├── paper/             # Paper trading simulation
-│   │   ├── processor/        # K-line aggregation
-│   │   ├── risk/              # Risk management
-│   │   ├── strategy/          # Trading strategies
-│   │   └── storage/           # TimescaleDB persistence
-│   ├── monitoring/            # Grafana dashboards
-│   └── scripts/               # Database migrations
-├── frontend/                  # React dashboard
-│   └── src/
-│       ├── components/        # UI components
-│       ├── hooks/             # Custom React hooks
-│       └── store/             # State management
-├── diagrams/                  # Architecture diagrams
-└── examples/                  # Usage examples
-```
-
----
-
-## 🚀 Key Features
+## Key Features
 
 ### 1. High-Performance Market Data Pipeline
 
@@ -89,22 +81,7 @@ quant-trader/
 
 ---
 
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| **Backend** | Go 1.24+, Gin, NATS JetStream, TimescaleDB, Wazero |
-| **Database** | PostgreSQL 15+, TimescaleDB |
-| **Messaging** | NATS Server with JetStream |
-| **Security** | WebAssembly (WASM), JWT Auth |
-| **Payments** | Stripe API |
-| **Frontend** | React 18, Vite, TypeScript, TailwindCSS, ECharts |
-| **Monitoring** | Prometheus, Grafana |
-| **DevOps** | Docker, Docker Compose |
-
----
-
-## 🏗 System Architecture
+## System Architecture
 
 ```mermaid
 graph TD
@@ -157,14 +134,42 @@ graph TD
     TSDB --> AS
 ```
 
+### Project Structure
+
+```
+quant-trader/
+├── backend/                    # High-performance Go trading engine
+│   ├── api/                   # REST API handlers (Gin)
+│   ├── cmd/                   # Application entry point
+│   ├── internal/
+│   │   ├── connector/        # Exchange WebSocket connectors
+│   │   ├── engine/            # Strategy execution engine
+│   │   ├── matching/          # High-performance matching engine
+│   │   ├── paper/             # Paper trading simulation
+│   │   ├── processor/        # K-line aggregation
+│   │   ├── risk/              # Risk management
+│   │   ├── strategy/          # Trading strategies
+│   │   └── storage/           # TimescaleDB persistence
+│   ├── monitoring/            # Grafana dashboards
+│   └── scripts/               # Database migrations
+├── frontend/                  # React dashboard
+│   └── src/
+│       ├── components/        # UI components
+│       ├── hooks/             # Custom React hooks
+│       └── store/             # State management
+├── diagrams/                  # Architecture diagrams
+└── examples/                  # Usage examples
+```
+
 ---
 
-## 🏁 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - **Go 1.24+**
 - **Docker & Docker Compose**
+- **Node.js 20+** (for frontend)
 - **PostgreSQL 15+** (optional, using TimescaleDB docker)
 
 ### 1. Clone the Repository
@@ -177,8 +182,7 @@ cd quant-trader
 ### 2. Start Infrastructure
 
 ```bash
-cd backend
-docker-compose up -d
+make dev
 ```
 
 This will start:
@@ -193,16 +197,6 @@ This will start:
 cd backend
 cp .env.example .env
 # Edit .env with your configuration
-```
-
-Example `.env`:
-```env
-DB_DSN=postgres://postgres:password@localhost:5432/quant_trader
-NATS_URL=nats://localhost:4222
-PORT=8080
-MATCHING_ENABLED=true
-JWT_SECRET=your-secret-key
-STRIPE_SECRET_KEY=sk_test_...
 ```
 
 ### 4. Run the Backend
@@ -223,12 +217,111 @@ Access the dashboard at `http://localhost:5173`
 
 ---
 
-## 📖 Usage Examples
+## Installation
+
+### Development Environment
+
+#### Backend Setup
+
+```bash
+# Clone and navigate to backend
+cd quant-trader/backend
+
+# Install Go dependencies
+go mod download
+
+# Run database migrations
+make db-migrate
+
+# Start the server
+go run cmd/main.go
+```
+
+#### Frontend Setup
+
+```bash
+cd quant-trader/frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+### Production Deployment
+
+See [DEPLOYMENT.md](./backend/DEPLOYMENT.md) for detailed production deployment instructions.
+
+```bash
+# Deploy using the deployment script
+./deploy/scripts/deploy.sh deploy production
+```
+
+---
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file in the `backend` directory:
+
+```env
+# Basic Configuration
+PORT=8080
+LOG_LEVEL=info
+
+# Database
+DB_DSN=postgres://postgres:password@localhost:5432/quant_trader
+
+# Message Queue
+NATS_URL=nats://localhost:4222
+
+# Matching Engine
+MATCHING_ENABLED=true
+MATCHING_LEASE_TTL=20s
+MATCHING_LEASE_REFRESH=5s
+MATCHING_SNAPSHOT_EVERY=2s
+
+# Security
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+
+# Payments (Stripe)
+STRIPE_API_KEY=sk_test_your_stripe_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+
+# Monitoring
+ENABLE_METRICS=true
+METRICS_PORT=9090
+
+# Notifications (Optional)
+DINGTALK_WEBHOOK=https://oapi.dingtalk.com/robot/send?access_token=xxx
+WECHAT_WEBHOOK=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx
+
+# AI Integration (Optional)
+OPENAI_API_KEY=sk-your-openai-api-key
+ANTHROPIC_API_KEY=sk-ant-your-claude-api-key
+```
+
+See [.env.example](./backend/.env.example) for the complete configuration template.
+
+### Configuration Guidelines
+
+1. **Security**: Always use strong, unique secrets for `JWT_SECRET` in production
+2. **Database**: Use SSL/TLS connections for production database access
+3. **Payments**: Use test keys for development, live keys only for production
+4. **Monitoring**: Enable metrics and set up proper alerting
+
+---
+
+## Usage Examples
 
 ### Paper Trading
 
+#### Submit a Paper Order
+
 ```go
-// Submit a paper order
+// Create order
 order := &model.Order{
     Symbol:    "BTCUSDT",
     Side:      model.OrderSideBuy,
@@ -248,21 +341,49 @@ POST /api/v1/paper/orders
 }
 ```
 
+#### Using cURL
+
+```bash
+curl -X POST http://localhost:8080/api/v1/paper/orders \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "type": "limit",
+    "price": "50000.00",
+    "quantity": "0.1"
+  }'
+```
+
 ### Subscribe to Market Data
+
+#### WebSocket Connection
 
 ```javascript
 // WebSocket subscription
 const ws = new WebSocket('ws://localhost:8080/ws/market');
 
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    console.log('Market update:', data);
-};
-
-ws.send(JSON.stringify({
+ws.onopen = () => {
+  console.log('Connected to market data stream');
+  ws.send(JSON.stringify({
     action: 'subscribe',
     symbols: ['BTCUSDT', 'ETHUSDT']
-}));
+  }));
+};
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Market update:', data);
+};
+
+ws.onerror = (error) => {
+  console.error('WebSocket error:', error);
+};
+
+ws.onclose = () => {
+  console.log('Disconnected from market data stream');
+};
 ```
 
 ### Run a Strategy
@@ -279,9 +400,57 @@ strategy := &ma.CrossStrategy{
 engine.Execute(strategy)
 ```
 
+### Create an Alert
+
+```bash
+curl -X POST http://localhost:8080/api/v1/alerts \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbol": "BTCUSDT",
+    "condition": "price_above",
+    "value": 50000,
+    "type": "price",
+    "enabled": true
+  }'
+```
+
 ---
 
-## 📊 Performance Benchmarks
+## API Documentation
+
+Complete API documentation is available in [API.md](./API.md).
+
+### Authentication
+
+Most endpoints require JWT authentication:
+
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+### Base URL
+
+```
+http://localhost:8080
+```
+
+### Available Endpoints
+
+| Category | Endpoints |
+|----------|-----------|
+| Authentication | `/api/v1/register`, `/api/v1/login` |
+| Market Data | `/api/v1/klines/:symbol`, `/ws` |
+| Paper Trading | `/api/v1/paper/*` |
+| Alerts | `/api/v1/alerts` |
+| Portfolios | `/api/v1/portfolios` |
+| Marketplace | `/api/v1/market/strategies` |
+| Backtest | `/api/v1/backtest`, `/api/v1/analytics/*` |
+| Subscription | `/api/v1/subscription` |
+
+---
+
+## Performance Benchmarks
 
 | Layer | Latency (P99) | Throughput |
 |-------|---------------|------------|
@@ -293,18 +462,93 @@ engine.Execute(strategy)
 
 ---
 
-## 🔗 Related Documentation
+## Troubleshooting
 
-- [Technical Architecture](./backend/ARCHITECTURE.md) - Deep dive into engine design
-- [API Documentation](./API.md) - Complete API reference
-- [Contributing Guide](./CONTRIBUTING.md) - How to contribute
-- [Changelog](./CHANGELOG.md) - Version history
+### Common Issues
+
+#### 1. Port Already in Use
+
+```bash
+# Check which process is using the port
+lsof -i :8080
+
+# Kill the process
+kill -9 <PID>
+```
+
+#### 2. Database Connection Failed
+
+```bash
+# Check if TimescaleDB is running
+docker-compose ps
+
+# View logs
+docker-compose logs timescaledb
+
+# Restart the database
+docker-compose restart timescaledb
+```
+
+#### 3. NATS Connection Issues
+
+```bash
+# Check NATS status
+docker-compose logs nats
+
+# Restart NATS
+docker-compose restart nats
+```
+
+#### 4. Frontend Build Errors
+
+```bash
+cd frontend
+
+# Clear npm cache
+npm cache clean --force
+
+# Delete node_modules and reinstall
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### Reset Development Environment
+
+```bash
+# Stop all services and remove volumes
+make docker-down
+docker volume prune
+
+# Restart fresh
+make dev
+```
+
+### Getting Help
+
+- **GitHub Issues**: [Report bugs or request features](https://github.com/your-repo/quant-trader/issues)
+- **Documentation**: Check [ARCHITECTURE.md](./backend/ARCHITECTURE.md) for technical details
+- **Examples**: See [examples/](./examples/) directory for usage examples
 
 ---
 
-## 🤝 Contributing
+## Tech Stack
 
-Contributions are welcome! Please read our [Contributing Guide](./CONTRIBUTING.md) for details.
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Go 1.24+, Gin, NATS JetStream, TimescaleDB, Wazero |
+| **Database** | PostgreSQL 15+, TimescaleDB |
+| **Messaging** | NATS Server with JetStream |
+| **Security** | WebAssembly (WASM), JWT Auth |
+| **Payments** | Stripe API |
+| **Frontend** | React 18, Vite, TypeScript, TailwindCSS, ECharts |
+| **Monitoring** | Prometheus, Grafana |
+| **DevOps** | Docker, Docker Compose |
+
+---
+
+## Contributing
+
+We welcome contributions! Please read our [Contributing Guide](./CONTRIBUTING.md) for details.
 
 ```bash
 # Fork the repo
@@ -312,7 +556,7 @@ Contributions are welcome! Please read our [Contributing Guide](./CONTRIBUTING.m
 git checkout -b feature/amazing-feature
 
 # Commit your changes
-git commit -m 'Add some amazing feature'
+git commit -m 'feat: add some amazing feature'
 
 # Push to the branch
 git push origin feature/amazing-feature
@@ -320,20 +564,40 @@ git push origin feature/amazing-feature
 # Open a Pull Request
 ```
 
+### Development Workflow
+
+1. **Setup**: Follow the [Installation](#installation) guide
+2. **Code**: Follow our coding standards (see [CONTRIBUTING.md](./CONTRIBUTING.md))
+3. **Test**: Run tests with `make test`
+4. **Document**: Update documentation for any changes
+5. **Submit**: Create a pull request with a clear description
+
 ---
 
-## 📄 License
+## Related Documentation
+
+- [Technical Architecture](./backend/ARCHITECTURE.md) - Deep dive into engine design
+- [API Documentation](./API.md) - Complete API reference
+- [Deployment Guide](./backend/DEPLOYMENT.md) - Production deployment instructions
+- [Contributing Guide](./CONTRIBUTING.md) - How to contribute
+- [Changelog](./CHANGELOG.md) - Version history
+
+---
+
+## License
 
 Distributed under the MIT License. See [LICENSE](./LICENSE) for more information.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [Gin](https://gin-gonic.com/) - Web framework
 - [NATS](https://nats.io/) - Messaging system
 - [TimescaleDB](https://www.timescale.com/) - Time-series database
 - [wazero](https://github.com/tetratelabs/wazero) - Go WASM runtime
+- [React](https://react.dev/) - Frontend library
+- [ECharts](https://echarts.apache.org/) - Charting library
 
 ---
 
