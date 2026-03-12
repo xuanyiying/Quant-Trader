@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
+	"net/url"
 	"quant-trader/internal/infrastructure"
 	"quant-trader/internal/model"
 	"time"
@@ -15,13 +18,16 @@ import (
 
 type BybitConnector struct {
 	logger *zap.Logger
-	symbol string // e.g. BTCUSDT
+	symbol string
+	proxy  *url.URL
 }
 
 func NewBybitConnector(logger *zap.Logger, symbol string) *BybitConnector {
+	proxyURL := getProxyURL()
 	return &BybitConnector{
 		logger: logger,
 		symbol: symbol,
+		proxy:  proxyURL,
 	}
 }
 
@@ -57,6 +63,12 @@ func (b *BybitConnector) Run(ctx context.Context, tradeChan chan<- model.Trade) 
 		b.logger.Info("connecting to Bybit websocket", zap.String("url", url))
 		dialer := websocket.Dialer{
 			HandshakeTimeout: 10 * time.Second,
+			Proxy:            http.ProxyURL(b.proxy),
+		}
+		if b.proxy != nil {
+			dialer.NetDial = func(network, addr string) (net.Conn, error) {
+				return net.Dial(network, addr)
+			}
 		}
 		conn, _, err := dialer.Dial(url, nil)
 		if err != nil {

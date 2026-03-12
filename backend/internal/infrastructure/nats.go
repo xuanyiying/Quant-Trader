@@ -23,7 +23,27 @@ func InitNATS(url string, logger *zap.Logger) (*nats.Conn, nats.JetStreamContext
 		Name:     "MARKET",
 		Subjects: []string{"market.raw.*.*", "market.kline.*.*"},
 	})
-	// ... (existing MARKET stream logic)
+	if err != nil {
+		_, _ = js.UpdateStream(&nats.StreamConfig{
+			Name:     "MARKET",
+			Subjects: []string{"market.raw.*.*", "market.kline.*.*"},
+		})
+	}
+
+	// Create STRATEGY stream for strategy signals
+	_, err = js.AddStream(&nats.StreamConfig{
+		Name:      "STRATEGY",
+		Subjects:  []string{"strategy.signal.*.*"},
+		Storage:   nats.FileStorage,
+		Retention: nats.LimitsPolicy,
+		MaxAge:    24 * time.Hour,
+	})
+	if err != nil {
+		_, _ = js.UpdateStream(&nats.StreamConfig{
+			Name:     "STRATEGY",
+			Subjects: []string{"strategy.signal.*.*"},
+		})
+	}
 
 	// Create PAPER stream for paper trading events
 	_, err = js.AddStream(&nats.StreamConfig{

@@ -9,15 +9,17 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 type PaperAccountRepoTestSuite struct {
 	suite.Suite
-	db   *gorm.DB
-	repo *PaperAccount
-	ctx  context.Context
+	db     *gorm.DB
+	repo   *PaperAccount
+	ctx    context.Context
+	logger *zap.Logger
 }
 
 func (s *PaperAccountRepoTestSuite) SetupTest() {
@@ -28,7 +30,8 @@ func (s *PaperAccountRepoTestSuite) SetupTest() {
 	err = s.db.AutoMigrate(&model.PaperAccount{})
 	s.Require().NoError(err)
 
-	s.repo = NewPaperAccount(s.db)
+	s.logger = zap.NewNop()
+	s.repo = NewPaperAccount(s.db, s.logger)
 	s.ctx = context.Background()
 }
 
@@ -137,7 +140,8 @@ func TestPaperAccountRepoTestSuite(t *testing.T) {
 func TestPaperAccount_UpdateBalance_NotFound(t *testing.T) {
 	db, _ := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	db.AutoMigrate(&model.PaperAccount{})
-	repo := NewPaperAccount(db)
+	logger := zap.NewNop()
+	repo := NewPaperAccount(db, logger)
 	ctx := context.Background()
 
 	// 更新不存在的用户余额应该不返回错误（GORM 的 Update 行为）
@@ -148,7 +152,8 @@ func TestPaperAccount_UpdateBalance_NotFound(t *testing.T) {
 func TestPaperAccount_Reset_NotFound(t *testing.T) {
 	db, _ := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	db.AutoMigrate(&model.PaperAccount{})
-	repo := NewPaperAccount(db)
+	logger := zap.NewNop()
+	repo := NewPaperAccount(db, logger)
 	ctx := context.Background()
 
 	// 重置不存在的用户应该不返回错误
@@ -161,7 +166,8 @@ func TestPaperAccount_Reset_NotFound(t *testing.T) {
 func TestPaperAccount_GetOrCreate_Concurrent(t *testing.T) {
 	db, _ := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	db.AutoMigrate(&model.PaperAccount{})
-	repo := NewPaperAccount(db)
+	logger := zap.NewNop()
+	repo := NewPaperAccount(db, logger)
 	ctx := context.Background()
 
 	userID := int64(1)

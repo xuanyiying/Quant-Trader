@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
+	"net/url"
 	"quant-trader/internal/infrastructure"
 	"quant-trader/internal/model"
 	"time"
@@ -16,12 +19,15 @@ import (
 type BinanceConnector struct {
 	logger *zap.Logger
 	symbol string
+	proxy  *url.URL
 }
 
 func NewBinanceConnector(logger *zap.Logger, symbol string) *BinanceConnector {
+	proxyURL := getProxyURL()
 	return &BinanceConnector{
 		logger: logger,
 		symbol: symbol,
+		proxy:  proxyURL,
 	}
 }
 
@@ -54,6 +60,12 @@ func (b *BinanceConnector) Run(ctx context.Context, tradeChan chan<- model.Trade
 		b.logger.Info("connecting to binance websocket", zap.String("url", url))
 		dialer := websocket.Dialer{
 			HandshakeTimeout: 10 * time.Second,
+			Proxy:            http.ProxyURL(b.proxy),
+		}
+		if b.proxy != nil {
+			dialer.NetDial = func(network, addr string) (net.Conn, error) {
+				return net.Dial(network, addr)
+			}
 		}
 		conn, _, err := dialer.Dial(url, nil)
 		if err != nil {

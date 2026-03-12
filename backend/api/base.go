@@ -41,7 +41,7 @@ func NewHandler(db *pgxpool.Pool, gormDB *gorm.DB, logger *zap.Logger) *Handler 
 
 	repoUser := repo.NewUser(gormDB)
 	repoAPIKey := repo.NewAPIKey(gormDB)
-	repoPaper := repo.NewPaperAccount(gormDB)
+	repoPaper := repo.NewPaperAccount(gormDB, logger)
 	repoPosition := repo.NewPaperPosition(gormDB)
 	repoOrder := repo.NewPaperOrder(gormDB)
 	repoAlert := repo.NewAlert(gormDB)

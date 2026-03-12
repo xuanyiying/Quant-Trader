@@ -1,12 +1,14 @@
 package middleware
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"quant-trader/internal/repo"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -39,7 +41,8 @@ func GenerateToken(userID int64) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
-func AuthMiddleware() gin.HandlerFunc {
+// AuthMiddleware creates an auth middleware with optional user validation
+func AuthMiddleware(userRepo *repo.User) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -69,6 +72,20 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
+		}
+
+		// Validate user exists in database if userRepo is provided
+		if userRepo != nil {
+			_, err = userRepo.GetByID(c.Request.Context(), claims.UserID)
+			if err != nil {
+				if errors.Is(err, repo.ErrNotFound) {
+					c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found, please login again"})
+				} else {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to validate user"})
+				}
+				c.Abort()
+				return
+			}
 		}
 
 		c.Set("userID", claims.UserID)

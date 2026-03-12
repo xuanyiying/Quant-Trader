@@ -104,7 +104,7 @@ health:
 
 # 运行数据库迁移
 db-migrate:
-	cd backend && docker-compose exec timescaledb psql -U postgres -d quant_trader -f /docker-entrypoint-initdb.d/migrations/*.sql
+	cd backend && docker-compose exec timescaledb bash -c 'for f in /docker-entrypoint-initdb.d/migrations/*.sql; do echo "Applying $$f..."; psql -U postgres -d quant_trader -f "$$f"; done'
 
 # 重置数据库
 db-reset:

@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"errors"
 
 	"quant-trader/internal/model"
 
@@ -31,7 +32,13 @@ func (r *Subscription) GetTierByName(ctx context.Context, name string) (*model.S
 func (r *Subscription) GetUserSubscription(ctx context.Context, userID int64) (*model.UserSubscription, error) {
 	var sub model.UserSubscription
 	err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&sub).Error
-	return &sub, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &sub, nil
 }
 
 func (r *Subscription) CreateUserSubscription(ctx context.Context, sub *model.UserSubscription) error {
@@ -45,11 +52,5 @@ func (r *Subscription) UpdateUserSubscription(ctx context.Context, sub *model.Us
 func (r *Subscription) GetActivePriceIDs(ctx context.Context) ([]model.SubscriptionPrice, error) {
 	var prices []model.SubscriptionPrice
 	err := r.db.WithContext(ctx).Where("is_active = ?", true).Find(&prices).Error
-	return prices, err
-}
-
-func (r *Subscription) GetTierPrices(ctx context.Context, tierID int64) ([]model.SubscriptionPrice, error) {
-	var prices []model.SubscriptionPrice
-	err := r.db.WithContext(ctx).Where("tier_id = ? AND is_active = ?", tierID, true).Find(&prices).Error
 	return prices, err
 }

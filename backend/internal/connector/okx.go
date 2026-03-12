@@ -3,6 +3,9 @@ package connector
 import (
 	"context"
 	"encoding/json"
+	"net"
+	"net/http"
+	"net/url"
 	"quant-trader/internal/infrastructure"
 	"quant-trader/internal/model"
 	"time"
@@ -14,13 +17,16 @@ import (
 
 type OKXConnector struct {
 	logger *zap.Logger
-	symbol string // e.g. BTC-USDT
+	symbol string
+	proxy  *url.URL
 }
 
 func NewOKXConnector(logger *zap.Logger, symbol string) *OKXConnector {
+	proxyURL := getProxyURL()
 	return &OKXConnector{
 		logger: logger,
 		symbol: symbol,
+		proxy:  proxyURL,
 	}
 }
 
@@ -58,6 +64,12 @@ func (o *OKXConnector) Run(ctx context.Context, tradeChan chan<- model.Trade) {
 		o.logger.Info("connecting to OKX websocket", zap.String("url", url))
 		dialer := websocket.Dialer{
 			HandshakeTimeout: 10 * time.Second,
+			Proxy:            http.ProxyURL(o.proxy),
+		}
+		if o.proxy != nil {
+			dialer.NetDial = func(network, addr string) (net.Conn, error) {
+				return net.Dial(network, addr)
+			}
 		}
 		conn, _, err := dialer.Dial(url, nil)
 		if err != nil {

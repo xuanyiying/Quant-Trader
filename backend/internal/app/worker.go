@@ -90,9 +90,13 @@ func (a *App) startPersistenceService(tradeSaver *storage.BatchSaver, klineSaver
 			return
 		}
 		tradeSaver.Add(trade)
-	}, nats.Durable("trade_saver"), nats.ManualAck())
+		err := m.Ack()
+		if err != nil {
+			a.Logger.Error("failed to ack trade message", zap.Error(err))
+		}
+	}, nats.Durable("trade_saver"), nats.ManualAck(), nats.DeliverAll())
 	if err != nil {
-		a.Logger.Fatal("failed to subscribe to trades", zap.Error(err))
+		a.Logger.Error("failed to subscribe to trades, consumer may already exist", zap.Error(err))
 	}
 
 	// 2. Subscribe to K-lines
@@ -103,9 +107,13 @@ func (a *App) startPersistenceService(tradeSaver *storage.BatchSaver, klineSaver
 			return
 		}
 		klineSaver.Add(kline)
-	}, nats.Durable("kline_saver"), nats.ManualAck())
+		err := m.Ack()
+		if err != nil {
+			a.Logger.Error("failed to ack kline message", zap.Error(err))
+		}
+	}, nats.Durable("kline_saver"), nats.ManualAck(), nats.DeliverAll())
 	if err != nil {
-		a.Logger.Fatal("failed to subscribe to klines", zap.Error(err))
+		a.Logger.Error("failed to subscribe to klines, consumer may already exist", zap.Error(err))
 	}
 }
 

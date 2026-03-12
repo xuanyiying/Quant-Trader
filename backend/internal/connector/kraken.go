@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
+	"net/url"
 	"quant-trader/internal/infrastructure"
 	"quant-trader/internal/model"
 	"time"
@@ -15,13 +18,16 @@ import (
 
 type KrakenConnector struct {
 	logger *zap.Logger
-	symbol string // e.g. XBT/USD
+	symbol string
+	proxy  *url.URL
 }
 
 func NewKrakenConnector(logger *zap.Logger, symbol string) *KrakenConnector {
+	proxyURL := getProxyURL()
 	return &KrakenConnector{
 		logger: logger,
 		symbol: symbol,
+		proxy:  proxyURL,
 	}
 }
 
@@ -39,6 +45,12 @@ func (k *KrakenConnector) Run(ctx context.Context, tradeChan chan<- model.Trade)
 		k.logger.Info("connecting to Kraken websocket", zap.String("url", url))
 		dialer := websocket.Dialer{
 			HandshakeTimeout: 10 * time.Second,
+			Proxy:            http.ProxyURL(k.proxy),
+		}
+		if k.proxy != nil {
+			dialer.NetDial = func(network, addr string) (net.Conn, error) {
+				return net.Dial(network, addr)
+			}
 		}
 		conn, _, err := dialer.Dial(url, nil)
 		if err != nil {

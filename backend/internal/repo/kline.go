@@ -21,8 +21,8 @@ func (r *Kline) GetBySymbol(ctx context.Context, symbol, period string, start, e
 	var klines []model.KLine
 	query := r.db.WithContext(ctx).
 		Where("symbol = ? AND period = ?", symbol, period).
-		Where("timestamp >= ? AND timestamp <= ?", start, end).
-		Order("timestamp DESC")
+		Where("time >= ? AND time <= ?", start, end).
+		Order("time DESC")
 
 	if limit > 0 {
 		query = query.Limit(limit)
@@ -36,7 +36,7 @@ func (r *Kline) GetLatest(ctx context.Context, symbol, period string, limit int)
 	var klines []model.KLine
 	err := r.db.WithContext(ctx).
 		Where("symbol = ? AND period = ?", symbol, period).
-		Order("timestamp DESC").
+		Order("time DESC").
 		Limit(limit).
 		Find(&klines).Error
 	return klines, err

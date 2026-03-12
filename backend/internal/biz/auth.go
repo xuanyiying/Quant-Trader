@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"quant-trader/api/middleware"
 	"quant-trader/internal/model"
@@ -42,10 +43,27 @@ func (b *Auth) Register(ctx context.Context, email, password string) (*model.Use
 
 	if err := b.user.Create(ctx, user); err != nil {
 		b.logger.Error("failed to register user", zap.Error(err))
-		return nil, ErrEmailAlreadyExists
+		// Check if it's a duplicate key error
+		if isDuplicateKeyError(err) {
+			return nil, ErrEmailAlreadyExists
+		}
+		return nil, err
 	}
 
 	return user, nil
+}
+
+// isDuplicateKeyError checks if the error is a duplicate key/unique constraint violation
+func isDuplicateKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	// Check for common duplicate key error messages from different databases
+	return strings.Contains(errStr, "duplicate") ||
+		strings.Contains(errStr, "unique constraint") ||
+		strings.Contains(errStr, "1062") || // MySQL error code
+		strings.Contains(errStr, "23505") // PostgreSQL error code
 }
 
 func (b *Auth) Login(ctx context.Context, email, password string) (string, error) {

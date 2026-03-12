@@ -18,6 +18,7 @@ import (
 	"quant-trader/internal/paper"
 	"quant-trader/internal/processor"
 	"quant-trader/internal/push"
+	"quant-trader/internal/repo"
 	"quant-trader/internal/storage"
 
 	"github.com/gin-gonic/gin"
@@ -207,13 +208,17 @@ func (a *App) setupRouter() *gin.Engine {
 
 	v1 := r.Group("/api/v1")
 	{
-		v1.POST("/register", apiHandler.Register)
-		v1.POST("/login", apiHandler.Login)
+		// Auth routes
+		v1.POST("/auth/register", apiHandler.Register)
+		v1.POST("/auth/login", apiHandler.Login)
 		v1.GET("/klines/:symbol", apiHandler.GetHistoryKLines)
 	}
 
+	// Create user repository for auth middleware
+	userRepo := repo.NewUser(a.GormDB)
+
 	protected := r.Group("/api/v1")
-	protected.Use(middleware.AuthMiddleware())
+	protected.Use(middleware.AuthMiddleware(userRepo))
 	protected.Use(middleware.SubscriptionMiddleware(a.DB)) // Apply subscription limits
 	protected.Use(middleware.RateLimitMiddleware())        // Apply rate limiting
 	{
@@ -239,8 +244,8 @@ func (a *App) setupRouter() *gin.Engine {
 		protected.POST("/portfolios", apiHandler.CreatePortfolio)
 
 		// Marketplace
-		protected.GET("/market/strategies", apiHandler.ListMarketStrategies)
-		protected.POST("/market/strategies/:id/purchase", apiHandler.PurchaseStrategy)
+		protected.GET("/marketplace", apiHandler.ListMarketStrategies)
+		protected.POST("/marketplace/:id/purchase", apiHandler.PurchaseStrategy)
 
 		// Analytics
 		protected.GET("/analytics/portfolio", apiHandler.GetPortfolioReport)

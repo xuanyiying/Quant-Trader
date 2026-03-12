@@ -23,7 +23,7 @@ export const API_ENDPOINTS = {
     BACKFILL: '/api/v1/klines/backfill',
   },
   ANALYTICS: {
-    PORTFOLIO: '/api/v1/portfolio/report',
+    PORTFOLIO: '/api/v1/analytics/portfolio',
   },
   SUBSCRIPTION: {
     INFO: '/api/v1/subscription',

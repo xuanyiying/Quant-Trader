@@ -36,8 +36,7 @@ services:
       POSTGRES_DB: quant_trader
     volumes:
       - timescale_data:/var/lib/postgresql/data
-      - ./scripts/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
-      - ./scripts/migrations:/docker-entrypoint-initdb.d/migrations:ro
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s

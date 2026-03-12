@@ -7,16 +7,18 @@ import (
 	"quant-trader/internal/model"
 
 	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 type PaperAccount struct {
-	db *gorm.DB
+	db     *gorm.DB
+	logger *zap.Logger
 }
 
-func NewPaperAccount(db *gorm.DB) *PaperAccount {
-	return &PaperAccount{db: db}
+func NewPaperAccount(db *gorm.DB, logger *zap.Logger) *PaperAccount {
+	return &PaperAccount{db: db, logger: logger}
 }
 
 func (r *PaperAccount) GetByUserID(ctx context.Context, userID int64) (*model.PaperAccount, error) {
@@ -34,12 +36,16 @@ func (r *PaperAccount) GetByUserID(ctx context.Context, userID int64) (*model.Pa
 func (r *PaperAccount) GetOrCreate(ctx context.Context, userID int64, initialBalance decimal.Decimal) (*model.PaperAccount, error) {
 	account, err := r.GetByUserID(ctx, userID)
 	if err == nil {
+		r.logger.Debug("paper account found", zap.Int64("user_id", userID), zap.Int64("account_id", account.ID))
 		return account, nil
 	}
 
 	if !errors.Is(err, ErrNotFound) {
+		r.logger.Error("failed to get paper account", zap.Int64("user_id", userID), zap.Error(err))
 		return nil, err
 	}
+
+	r.logger.Info("creating new paper account", zap.Int64("user_id", userID), zap.String("initial_balance", initialBalance.String()))
 
 	account = &model.PaperAccount{
 		UserID:         userID,
@@ -48,10 +54,12 @@ func (r *PaperAccount) GetOrCreate(ctx context.Context, userID int64, initialBal
 	}
 	err = r.db.WithContext(ctx).Create(account).Error
 	if err != nil {
+		r.logger.Error("failed to create paper account", zap.Int64("user_id", userID), zap.Error(err))
 		return nil, err
 	}
 
-	return r.GetByUserID(ctx, userID)
+	r.logger.Info("paper account created successfully", zap.Int64("user_id", userID), zap.Int64("account_id", account.ID))
+	return account, nil
 }
 
 func (r *PaperAccount) UpdateBalance(ctx context.Context, userID int64, balance decimal.Decimal) error {
