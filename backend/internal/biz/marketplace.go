@@ -18,17 +18,32 @@ var (
 	ErrAlreadyPurchased    = errors.New("strategy already purchased")
 	ErrUnauthorized        = errors.New("unauthorized access")
 	ErrInvalidStrategyData = errors.New("invalid strategy data")
+	ErrPaymentNotSupported = errors.New("payment not supported: paper account service not available")
 )
+
+// PaperAccountService 定义纸账户服务接口
+// 使用接口使依赖变为可选，支持不同的实现
+type PaperAccountService interface {
+	GetByUserID(ctx context.Context, userID int64) (*model.PaperAccount, error)
+	TransferBalance(ctx context.Context, buyerID, authorID int64, amount decimal.Decimal) error
+}
 
 // Marketplace 策略市场业务逻辑
 type Marketplace struct {
 	repo         *repo.Marketplace
-	paperAccount *repo.PaperAccount
+	paperAccount PaperAccountService // 使用接口类型，可以为 nil
 	logger       *zap.Logger
 }
 
 // NewMarketplace 创建策略市场业务逻辑
-func NewMarketplace(repo *repo.Marketplace, paperAccount *repo.PaperAccount, logger *zap.Logger) *Marketplace {
+func NewMarketplace(repo *repo.Marketplace, paperAccount PaperAccountService, logger *zap.Logger) *Marketplace {
+	if repo == nil {
+		panic("marketplace repo is required")
+	}
+	if logger == nil {
+		panic("logger is required")
+	}
+	// paperAccount 可以为 nil，表示不支持付费策略
 	return &Marketplace{
 		repo:         repo,
 		paperAccount: paperAccount,
@@ -215,8 +230,9 @@ func (b *Marketplace) PurchaseStrategy(ctx context.Context, userID int64, strate
 
 	// 检查余额（如果是付费策略）
 	if item.Price.GreaterThan(decimal.Zero) {
+		// 检查 paperAccount 服务是否可用
 		if b.paperAccount == nil {
-			return errors.New("paper account service not available")
+			return ErrPaymentNotSupported
 		}
 
 		// 使用事务转移余额（原子操作）
@@ -241,33 +257,19 @@ func (b *Marketplace) PurchaseStrategy(ctx context.Context, userID int64, strate
 
 	if err := b.repo.CreatePurchase(ctx, purchase); err != nil {
 		// 购买记录创建失败，需要回滚余额
-		if item.Price.GreaterThan(decimal.Zero) {
+		if item.Price.GreaterThan(decimal.Zero) && b.paperAccount != nil {
 			b.logger.Error("failed to create purchase record, rolling back balances",
 				zap.Error(err),
 				zap.Int64("user_id", userID),
 				zap.Int64("strategy_id", strategyID),
 			)
-			// 回滚买家余额
-			account, _ := b.paperAccount.GetByUserID(ctx, userID)
-			if account != nil {
-				originalBalance := account.Balance.Add(item.Price)
-				if rollbackErr := b.paperAccount.UpdateBalance(ctx, userID, originalBalance); rollbackErr != nil {
-					b.logger.Error("failed to rollback buyer balance after purchase failure",
-						zap.Error(rollbackErr),
-						zap.Int64("user_id", userID),
-					)
-				}
-			}
-			// 回滚作者余额
-			authorAccount, _ := b.paperAccount.GetByUserID(ctx, item.UserID)
-			if authorAccount != nil {
-				authorOriginalBalance := authorAccount.Balance.Sub(item.Price)
-				if rollbackErr := b.paperAccount.UpdateBalance(ctx, item.UserID, authorOriginalBalance); rollbackErr != nil {
-					b.logger.Error("failed to rollback author balance after purchase failure",
-						zap.Error(rollbackErr),
-						zap.Int64("author_id", item.UserID),
-					)
-				}
+			// 回滚余额（反向转账）
+			if rollbackErr := b.paperAccount.TransferBalance(ctx, item.UserID, userID, item.Price); rollbackErr != nil {
+				b.logger.Error("failed to rollback balance after purchase failure",
+					zap.Error(rollbackErr),
+					zap.Int64("buyer_id", userID),
+					zap.Int64("author_id", item.UserID),
+				)
 			}
 		}
 		return fmt.Errorf("failed to create purchase record: %w", err)
