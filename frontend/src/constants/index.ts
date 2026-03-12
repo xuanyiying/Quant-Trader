@@ -1,8 +1,8 @@
 // API Endpoints
 export const API_ENDPOINTS = {
   AUTH: {
-    LOGIN: '/api/v1/login',
-    REGISTER: '/api/v1/register',
+    LOGIN: '/api/v1/auth/login',
+    REGISTER: '/api/v1/auth/register',
   },
   PAPER: {
     ACCOUNT: '/api/v1/paper/account',
@@ -14,8 +14,16 @@ export const API_ENDPOINTS = {
     STRATEGIES: '/api/v1/market/strategies',
     KLINES: (symbol: string, period: string) => `/api/v1/klines/${symbol}?period=${period}`,
   },
+  MARKETPLACE: {
+    STRATEGIES: '/api/v1/marketplace',
+    PURCHASE: (id: number) => `/api/v1/marketplace/${id}/purchase`,
+  },
+  KLINES: {
+    LATEST: '/api/v1/klines/latest',
+    BACKFILL: '/api/v1/klines/backfill',
+  },
   ANALYTICS: {
-    PORTFOLIO: '/api/v1/analytics/portfolio',
+    PORTFOLIO: '/api/v1/portfolio/report',
   },
   SUBSCRIPTION: {
     INFO: '/api/v1/subscription',
@@ -25,7 +33,7 @@ export const API_ENDPOINTS = {
     LIST: '/api/v1/alerts',
     DELETE: (id: number) => `/api/v1/alerts/${id}`,
   },
-  BACKFILL: '/api/v1/backfill',
+  BACKFILL: '/api/v1/klines/backfill',
 } as const;
 
 // WebSocket Configuration

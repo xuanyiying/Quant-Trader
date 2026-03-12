@@ -27,6 +27,7 @@ type Handler struct {
 	bizAlert        *biz.Alert
 	bizKline        *biz.Kline
 	bizMarketplace  *biz.Marketplace
+	bizBackfill     *biz.Backfill
 }
 
 func NewHandler(db *pgxpool.Pool, gormDB *gorm.DB, logger *zap.Logger) *Handler {
@@ -59,7 +60,8 @@ func NewHandler(db *pgxpool.Pool, gormDB *gorm.DB, logger *zap.Logger) *Handler 
 	h.bizAPIKey = biz.NewAPIKey(repoAPIKey, logger)
 	h.bizAlert = biz.NewAlert(repoAlert, logger)
 	h.bizKline = biz.NewKline(repoKline, logger)
-	h.bizMarketplace = biz.NewMarketplace(repoMarketplace, logger)
+	h.bizMarketplace = biz.NewMarketplace(repoMarketplace, repoPaper, logger)
+	h.bizBackfill = biz.NewBackfill(db, logger)
 
 	return h
 }

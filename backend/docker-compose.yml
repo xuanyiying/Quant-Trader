@@ -1,20 +1,84 @@
-# docker-compose.yml
+# ============================================================
+# 开发环境 Docker Compose 配置
+# 
+# 特点:
+# - 简洁配置: 只包含核心基础设施服务
+# - 快速启动: 最小化服务依赖
+# - 本地开发: 后端代码本地运行，不打包到 Docker
+# ============================================================
+
+version: '3.8'
+
+# ==================== 网络配置 ====================
+networks:
+  quant-network:
+    driver: bridge
+
+# ==================== 数据卷配置 ====================
+volumes:
+  timescale_data:
+  redis_data:
+  nats_data:
+
+# ==================== 服务定义 ====================
 services:
+
+  # ==================== 数据库服务 ====================
   timescaledb:
     image: timescale/timescaledb:latest-pg15
+    container_name: quant-trader-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-    ports: ["5432:5432"]
+      POSTGRES_DB: quant_trader
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./scripts/migrations:/docker-entrypoint-initdb.d/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - quant-network
 
+  # ==================== 缓存服务 ====================
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    container_name: quant-trader-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - quant-network
 
+  # ==================== 消息队列服务 ====================
   nats:
-    image: nats:latest
-    command: "-js" # Enable JetStream
-    ports: ["4222:4222", "8222:8222"]
-
-  grafana:
-    image: grafana/grafana:latest
-    ports: ["3000:3000"]
+    image: nats:2.10-alpine
+    container_name: quant-trader-nats
+    restart: unless-stopped
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: "-js -sd /data -m 8222"
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - quant-network

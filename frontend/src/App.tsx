@@ -13,7 +13,7 @@ import { useMarketStore } from './store/useMarketStore';
 import { useDataStore } from './store/useDataStore';
 import { useWebSocket } from './hooks/useWebSocket';
 import axios from './api/axios';
-import { API_ENDPOINTS, PRICE_IDS, UI_CONFIG } from './constants';
+import { UI_CONFIG, PRICE_IDS } from './constants';
 import { getErrorMessage } from './utils/errorHandler';
 import { showSuccess, showError, showConfirm } from './utils/notifications';
 import { safeParseFloat } from './utils/formatters';

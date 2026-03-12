@@ -1,4 +1,13 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+import type { ErrorResponse } from '../types/errors';
+import {
+  ValidationError,
+  UnauthorizedError,
+  ForbiddenError,
+  NotFoundError,
+  ConflictError,
+  InternalError,
+} from '../types/errors';
 
 const instance = axios.create({
   baseURL: '/',
@@ -19,13 +28,31 @@ instance.interceptors.request.use(
 
 instance.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      // We don't want to use window.location.reload() here as it might cause loops
-      // The App.tsx component will handle the state change if we trigger it correctly
+  (error: AxiosError<ErrorResponse>) => {
+    if (!error.response) {
+      return Promise.reject(new InternalError('Network error'));
     }
-    return Promise.reject(error);
+
+    const { status, data } = error.response;
+    const errorMessage = data?.error || 'An unexpected error occurred';
+
+    switch (status) {
+      case 400:
+        return Promise.reject(new ValidationError(errorMessage));
+      case 401:
+        localStorage.removeItem('token');
+        return Promise.reject(new UnauthorizedError(errorMessage));
+      case 403:
+        return Promise.reject(new ForbiddenError(errorMessage));
+      case 404:
+        return Promise.reject(new NotFoundError(errorMessage));
+      case 409:
+        return Promise.reject(new ConflictError(errorMessage));
+      case 500:
+        return Promise.reject(new InternalError(errorMessage));
+      default:
+        return Promise.reject(new InternalError(errorMessage));
+    }
   }
 );
 

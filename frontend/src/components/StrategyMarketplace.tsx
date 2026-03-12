@@ -41,7 +41,7 @@ const StrategyMarketplace: React.FC<Props> = ({ strategies = [], loading, onPurc
                                     <p className="text-[10px] text-gray-400 font-bold italic">by {s.author}</p>
                                 </div>
                                 <div className="bg-blue-600/10 text-blue-400 text-[10px] font-black px-2 py-1 rounded border border-blue-500/20">
-                                    {s.price === 0 ? 'FREE' : `$${s.price}`}
+                                    {Number(s.price) === 0 ? 'FREE' : `$${s.price}`}
                                 </div>
                             </div>
                             <p className="text-xs text-gray-500 line-clamp-2 mb-4 leading-relaxed group-hover:text-gray-400 transition-colors">

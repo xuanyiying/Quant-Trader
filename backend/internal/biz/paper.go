@@ -13,9 +13,8 @@ import (
 )
 
 var (
-	ErrInsufficientBalance = errors.New("insufficient balance")
-	ErrInvalidOrderSide    = errors.New("invalid order side")
-	ErrInvalidOrderType    = errors.New("invalid order type")
+	ErrInvalidOrderSide = errors.New("invalid order side")
+	ErrInvalidOrderType = errors.New("invalid order type")
 )
 
 type PaperTrading struct {

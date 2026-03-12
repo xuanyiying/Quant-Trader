@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Mail, ArrowRight, Loader2, TrendingUp } from 'lucide-react';
-import axios from '../api/axios';
-import { API_ENDPOINTS } from '../constants';
+import * as authApi from '../api/auth';
 import { getErrorMessage } from '../utils/errorHandler';
 
 interface AuthProps {
@@ -21,15 +20,12 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setError('');
 
     try {
-      const endpoint = isLogin ? API_ENDPOINTS.AUTH.LOGIN : API_ENDPOINTS.AUTH.REGISTER;
-      const response = await axios.post(endpoint, { email, password });
-
       if (isLogin) {
-        const { token } = response.data;
-        localStorage.setItem('token', token);
-        onLogin(token);
+        const response = await authApi.login(email, password);
+        localStorage.setItem('token', response.token);
+        onLogin(response.token);
       } else {
-        // After registration, switch to login
+        await authApi.register(email, password);
         setIsLogin(true);
         setError('Registration successful! Please login.');
       }

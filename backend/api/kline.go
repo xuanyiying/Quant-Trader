@@ -1,14 +1,12 @@
 package api
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"time"
 
 	"quant-trader/internal/biz"
 	"quant-trader/internal/model"
-	"quant-trader/internal/storage"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
@@ -79,23 +77,8 @@ func (h *Handler) TriggerBackfill(c *gin.Context) {
 		return
 	}
 
-	backfiller := storage.NewHistoryBackfiller(h.db, h.logger)
-
-	go func() {
-		ctx := context.Background()
-		var err error
-		switch strings.ToLower(req.Exchange) {
-		case "binance":
-			err = backfiller.BackfillBinance(ctx, strings.ToUpper(req.Symbol), req.StartTime, req.EndTime)
-		default:
-			h.logger.Warn("unsupported exchange for backfill", zap.String("exchange", req.Exchange))
-			return
-		}
-
-		if err != nil {
-			h.logger.Error("backfill failed", zap.Error(err), zap.String("symbol", req.Symbol))
-		}
-	}()
+	// 使用 Biz 层启动异步补全任务
+	h.bizBackfill.BackfillExchange(c.Request.Context(), strings.ToLower(req.Exchange), strings.ToUpper(req.Symbol), req.StartTime, req.EndTime)
 
 	c.JSON(http.StatusAccepted, gin.H{"message": "backfill task started"})
 }

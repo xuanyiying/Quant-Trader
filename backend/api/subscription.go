@@ -1,9 +1,12 @@
 package api
 
 import (
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"os"
+
+	"quant-trader/internal/biz"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,6 +16,10 @@ func (h *Handler) GetSubscription(c *gin.Context) {
 
 	info, err := h.bizSubscription.GetSubscription(c.Request.Context(), userID)
 	if err != nil {
+		if errors.Is(err, biz.ErrSubscriptionNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "subscription not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get subscription"})
 		return
 	}

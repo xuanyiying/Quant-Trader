@@ -1,55 +1,36 @@
-import { AxiosError } from 'axios';
+import type { ApiError } from '../types/errors';
 
-export interface ApiError {
-  message: string;
-  status?: number;
-  code?: string;
+export function logError(context: string, error: unknown): void {
+  console.error(`[${context}]`, getErrorMessage(error));
 }
 
-/**
- * Extract error message from various error types
- */
-export const getErrorMessage = (error: unknown): string => {
+export function getErrorMessage(error: unknown): string {
+  if (isApiError(error)) {
+    return error.message;
+  }
+
   if (error instanceof Error) {
     return error.message;
   }
-  
+
   if (typeof error === 'string') {
     return error;
   }
-  
-  const axiosError = error as AxiosError<{ error?: string }>;
-  if (axiosError.response?.data?.error) {
-    return axiosError.response.data.error;
-  }
-  
+
   return 'An unexpected error occurred';
-};
+}
 
-/**
- * Parse API error response
- */
-export const parseApiError = (error: unknown): ApiError => {
-  const axiosError = error as AxiosError<{ error?: string }>;
-  
-  return {
-    message: getErrorMessage(error),
-    status: axiosError.response?.status,
-    code: axiosError.code,
-  };
-};
+export function isApiError(error: unknown): error is ApiError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    'status' in error &&
+    typeof (error as ApiError).message === 'string' &&
+    typeof (error as ApiError).status === 'number'
+  );
+}
 
-/**
- * Check if error is authentication error
- */
-export const isAuthError = (error: unknown): boolean => {
-  const axiosError = error as AxiosError;
-  return axiosError.response?.status === 401;
-};
-
-/**
- * Log error to console with context
- */
-export const logError = (context: string, error: unknown): void => {
-  console.error(`[${context}]`, error);
-};
+export function handleApiError(error: unknown): never {
+  throw new Error(getErrorMessage(error));
+}

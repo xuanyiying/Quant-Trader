@@ -1,0 +1,60 @@
+# ============================================================
+# Prometheus 配置文件 - 开发环境
+# ============================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: development
+
+# 告警规则文件
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+# 抓取配置
+scrape_configs:
+  # ==================== Prometheus 自身 ====================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          instance: 'prometheus'
+
+  # ==================== 后端服务 ====================
+  - job_name: 'quant-trader-backend'
+    static_configs:
+      - targets: ['backend:9090']
+        labels:
+          service: 'backend'
+          environment: 'development'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # ==================== NATS ====================
+  - job_name: 'nats'
+    static_configs:
+      - targets: ['nats:8222']
+        labels:
+          service: 'nats'
+    metrics_path: '/metrics'
+
+  # ==================== Redis ====================
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+        labels:
+          service: 'redis'
+
+  # ==================== PostgreSQL/TimescaleDB ====================
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['timescaledb:5432']
+        labels:
+          service: 'postgres'
+
+# 告警配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []

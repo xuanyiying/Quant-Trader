@@ -1,18 +1,11 @@
 import React, { useState } from 'react';
 import { Bell, Plus, Trash2, ShieldAlert } from 'lucide-react';
-import axios from '../api/axios';
-import { API_ENDPOINTS } from '../constants';
+import * as alertApi from '../api/alert';
 import { showError } from '../utils/notifications';
-
-interface Alert {
-    id: number;
-    symbol: string;
-    condition_type: string;
-    target_value: number;
-}
+import type { Alert as AlertType } from '../types/data';
 
 interface Props {
-    alerts: Alert[];
+    alerts: AlertType[];
     symbol: string;
     onRefresh: () => void;
 }
@@ -26,10 +19,10 @@ const AlertsManager: React.FC<Props> = ({ alerts, symbol, onRefresh }) => {
         if (!alertPrice) return;
         setLoading(true);
         try {
-            await axios.post(API_ENDPOINTS.ALERTS.LIST, {
+            await alertApi.createAlert({
                 symbol: symbol,
                 condition_type: alertType,
-                target_value: parseFloat(alertPrice)
+                target_value: alertPrice
             });
             setAlertPrice('');
             onRefresh();
@@ -42,7 +35,7 @@ const AlertsManager: React.FC<Props> = ({ alerts, symbol, onRefresh }) => {
 
     const handleDeleteAlert = async (id: number) => {
         try {
-            await axios.delete(API_ENDPOINTS.ALERTS.DELETE(id));
+            await alertApi.deleteAlert(id);
             onRefresh();
         } catch {
             showError('Failed to delete alert');
@@ -111,7 +104,7 @@ const AlertsManager: React.FC<Props> = ({ alerts, symbol, onRefresh }) => {
                                 <div className="flex flex-col">
                                     <span className="text-xs font-black text-gray-300">{a.symbol}</span>
                                     <span className="text-[10px] text-gray-500 font-mono">
-                                        {a.condition_type === 'price_above' ? 'UPPERBOUND' : 'LOWERBOUND'} · {a.target_value}
+                                        {a.condition_type === 'price_above' ? 'UPPERBOUND' : 'LOWERBOUND'} · {Number(a.target_value).toFixed(2)}
                                     </span>
                                 </div>
                             </div>

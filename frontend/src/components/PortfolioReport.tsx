@@ -1,17 +1,9 @@
 import React from 'react';
 import { PieChart } from 'lucide-react';
-
-interface PortfolioReportData {
-    total_return: number;
-    sharpe_ratio: number;
-    max_drawdown: number;
-    win_rate: number;
-    trades_count: number;
-    equity_curve: { time: string; value: number }[];
-}
+import type { PortfolioReport as PortfolioReportType } from '../types/data';
 
 interface Props {
-    report: PortfolioReportData | null;
+    report: PortfolioReportType | null;
     loading: boolean;
 }
 
@@ -30,7 +22,6 @@ const PortfolioReport: React.FC<Props> = ({ report, loading }) => {
 
     if (!report) return null;
 
-    // Ensure all metrics are treated as numbers
     const totalReturn = Number(report.total_return) || 0;
     const sharpeRatio = Number(report.sharpe_ratio) || 0;
     const maxDrawdown = Number(report.max_drawdown) || 0;
@@ -67,12 +58,12 @@ const PortfolioReport: React.FC<Props> = ({ report, loading }) => {
             <div className="space-y-3">
                 <div className="flex justify-between items-center">
                     <span className="text-[10px] text-gray-500 font-black uppercase">Trade Count</span>
-                    <span className="text-xs font-mono text-gray-300">{report.trades_count} Executed</span>
+                    <span className="text-xs font-mono text-gray-300">{report.total_trades} Executed</span>
                 </div>
                 <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
                     <div
                         className="h-full bg-blue-500 rounded-full"
-                        style={{ width: `${Math.min(report.trades_count, 100)}%` }}
+                        style={{ width: `${Math.min(report.total_trades, 100)}%` }}
                     ></div>
                 </div>
             </div>

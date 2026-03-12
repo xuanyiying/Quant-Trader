@@ -1,8 +1,17 @@
 import { create } from 'zustand';
-import axios from '../api/axios';
 import type { DataState, Order, BackfillParams } from '../types/data';
-import { API_ENDPOINTS } from '../constants';
 import { logError } from '../utils/errorHandler';
+import {
+  getAccount,
+  resetAccount as resetAccountApi,
+  createOrder as createOrderApi,
+  getPositions,
+} from '../api/paper';
+import { listStrategies, purchaseStrategy as purchaseStrategyApi } from '../api/marketplace';
+import { getReport } from '../api/portfolio';
+import { getSubscription, createCheckoutSession } from '../api/subscription';
+import { getAlerts } from '../api/alert';
+import { triggerBackfill as triggerBackfillApi } from '../api/kline';
 
 interface DataActions {
   fetchPaperAccount: () => Promise<void>;
@@ -38,8 +47,8 @@ export const useDataStore = create<DataState & DataActions>((set, get) => ({
   fetchPaperAccount: async () => {
     set((state) => ({ loading: { ...state.loading, account: true } }));
     try {
-      const response = await axios.get(API_ENDPOINTS.PAPER.ACCOUNT);
-      set({ paperAccount: response.data });
+      const data = await getAccount();
+      set({ paperAccount: data });
     } catch (error) {
       logError('fetchPaperAccount', error);
     } finally {
@@ -50,8 +59,8 @@ export const useDataStore = create<DataState & DataActions>((set, get) => ({
   fetchPositions: async () => {
     set((state) => ({ loading: { ...state.loading, positions: true } }));
     try {
-      const response = await axios.get(API_ENDPOINTS.PAPER.POSITIONS);
-      set({ positions: response.data || [] });
+      const data = await getPositions();
+      set({ positions: data || [] });
     } catch (error) {
       logError('fetchPositions', error);
     } finally {
@@ -62,8 +71,8 @@ export const useDataStore = create<DataState & DataActions>((set, get) => ({
   fetchStrategies: async () => {
     set((state) => ({ loading: { ...state.loading, strategies: true } }));
     try {
-      const response = await axios.get(API_ENDPOINTS.MARKET.STRATEGIES);
-      set({ strategies: response.data || [] });
+      const data = await listStrategies();
+      set({ strategies: data || [] });
     } catch (error) {
       logError('fetchStrategies', error);
     } finally {
@@ -74,8 +83,8 @@ export const useDataStore = create<DataState & DataActions>((set, get) => ({
   fetchPortfolioReport: async () => {
     set((state) => ({ loading: { ...state.loading, report: true } }));
     try {
-      const response = await axios.get(API_ENDPOINTS.ANALYTICS.PORTFOLIO);
-      set({ portfolioReport: response.data });
+      const data = await getReport();
+      set({ portfolioReport: data });
     } catch (error) {
       logError('fetchPortfolioReport', error);
     } finally {
@@ -85,7 +94,7 @@ export const useDataStore = create<DataState & DataActions>((set, get) => ({
 
   resetAccount: async () => {
     try {
-      await axios.post(API_ENDPOINTS.PAPER.RESET);
+      await resetAccountApi();
       await Promise.all([get().fetchPaperAccount(), get().fetchPositions()]);
     } catch (error) {
       logError('resetAccount', error);
@@ -95,7 +104,7 @@ export const useDataStore = create<DataState & DataActions>((set, get) => ({
 
   purchaseStrategy: async (id: number) => {
     try {
-      await axios.post(`${API_ENDPOINTS.MARKET.STRATEGIES}/${id}/purchase`);
+      await purchaseStrategyApi(id);
       await get().fetchStrategies();
     } catch (error) {
       logError('purchaseStrategy', error);
@@ -105,7 +114,7 @@ export const useDataStore = create<DataState & DataActions>((set, get) => ({
 
   createOrder: async (order: Order) => {
     try {
-      await axios.post(API_ENDPOINTS.PAPER.ORDERS, order);
+      await createOrderApi(order);
       await Promise.all([get().fetchPaperAccount(), get().fetchPositions()]);
     } catch (error) {
       logError('createOrder', error);
@@ -115,11 +124,9 @@ export const useDataStore = create<DataState & DataActions>((set, get) => ({
 
   upgradeSubscription: async (priceId: string) => {
     try {
-      const response = await axios.post(API_ENDPOINTS.SUBSCRIPTION.CHECKOUT, {
-        price_id: priceId
-      });
-      if (response.data?.url) {
-        window.location.href = response.data.url;
+      const data = await createCheckoutSession(priceId);
+      if (data?.session_url) {
+        window.location.href = data.session_url;
       }
     } catch (error) {
       logError('upgradeSubscription', error);
@@ -129,7 +136,7 @@ export const useDataStore = create<DataState & DataActions>((set, get) => ({
 
   triggerBackfill: async (params: BackfillParams) => {
     try {
-      await axios.post(API_ENDPOINTS.BACKFILL, params);
+      await triggerBackfillApi(params);
     } catch (error) {
       logError('triggerBackfill', error);
       throw error;
@@ -139,8 +146,8 @@ export const useDataStore = create<DataState & DataActions>((set, get) => ({
   fetchSubscription: async () => {
     set((state) => ({ loading: { ...state.loading, subscription: true } }));
     try {
-      const response = await axios.get(API_ENDPOINTS.SUBSCRIPTION.INFO);
-      set({ subscription: response.data });
+      const data = await getSubscription();
+      set({ subscription: data });
     } catch (error) {
       logError('fetchSubscription', error);
     } finally {
@@ -151,8 +158,8 @@ export const useDataStore = create<DataState & DataActions>((set, get) => ({
   fetchAlerts: async () => {
     set((state) => ({ loading: { ...state.loading, alerts: true } }));
     try {
-      const response = await axios.get(API_ENDPOINTS.ALERTS.LIST);
-      set({ alerts: response.data || [] });
+      const data = await getAlerts();
+      set({ alerts: data || [] });
     } catch (error) {
       logError('fetchAlerts', error);
     } finally {

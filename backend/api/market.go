@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -42,7 +43,7 @@ func (h *Handler) PurchaseStrategy(c *gin.Context) {
 	}
 
 	if err := h.bizMarketplace.Purchase(c.Request.Context(), userID, marketItemID); err != nil {
-		if err == repo.ErrNotFound {
+		if errors.Is(err, repo.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "strategy not found in marketplace"})
 			return
 		}

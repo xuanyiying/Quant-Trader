@@ -1,0 +1,525 @@
+# ============================================================
+# 生产环境 Docker Compose 配置
+# 
+# 特点:
+# - 高可用性: 副本、健康检查、自动重启
+# - 安全性: 网络隔离、资源限制、只读文件系统
+# - 性能优化: 资源限制、缓存、连接池
+# - 监控集成: Prometheus、Grafana
+# ============================================================
+
+version: '3.8'
+
+# ==================== 网络配置 ====================
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true  # 内部网络，外部无法直接访问
+  monitoring:
+    driver: bridge
+
+# ==================== 数据卷配置 ====================
+volumes:
+  timescale_data:
+    driver: local
+  redis_data:
+    driver: local
+  nats_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  backend_logs:
+    driver: local
+
+# ==================== 配置文件 ====================
+configs:
+  prometheus_config:
+    file: ./config/prometheus.yml
+  grafana_dashboards:
+    file: ./config/grafana/dashboards
+
+# ==================== 服务定义 ====================
+services:
+
+  # ==================== 前端服务 ====================
+  frontend:
+    image: quant-trader-frontend:latest
+    container_name: quant-trader-frontend
+    restart: always
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+    
+    # 端口映射
+    ports:
+      - "80:80"
+      - "443:443"
+    
+    # 网络配置
+    networks:
+      - frontend
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # 环境变量
+    environment:
+      - NODE_ENV=production
+      - API_URL=https://api.quant-trader.com
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # 安全配置
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+
+  # ==================== 后端服务 ====================
+  backend:
+    image: quant-trader-backend:latest
+    container_name: quant-trader-backend
+    restart: always
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 15s
+        failure_action: rollback
+    
+    # 端口映射
+    ports:
+      - "8080:8080"
+      - "9090:9090"  # Prometheus metrics
+    
+    # 网络配置
+    networks:
+      - frontend
+      - backend
+      - monitoring
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # 环境变量
+    environment:
+      - ENVIRONMENT=production
+      - PORT=8080
+      - DB_DSN=postgres://postgres:${POSTGRES_PASSWORD}@timescaledb:5432/quant_trader?sslmode=disable
+      - NATS_URL=nats://nats:4222
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=info
+      - ENABLE_METRICS=true
+      - METRICS_PORT=9090
+      - MATCHING_ENABLED=true
+      - MATCHING_LEASE_TTL=30s
+      - MATCHING_LEASE_REFRESH=10s
+      - MATCHING_SNAPSHOT_EVERY=5s
+    
+    # 从 .env 文件加载敏感配置
+    env_file:
+      - .env.production
+    
+    # 数据卷
+    volumes:
+      - backend_logs:/app/logs
+    
+    # 依赖服务
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    
+    # 安全配置
+    security_opt:
+      - no-new-privileges:true
+
+  # ==================== 数据库服务 ====================
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: quant-trader-db
+    restart: always
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    
+    # 端口映射（仅内部网络）
+    ports:
+      - "5432:5432"
+    
+    # 网络配置
+    networks:
+      - backend
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    
+    # 环境变量
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=quant_trader
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    
+    # 数据卷
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ../../backend/scripts/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ../../backend/scripts/migrations:/docker-entrypoint-initdb.d/migrations:ro
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  # ==================== 缓存服务 ====================
+  redis:
+    image: redis:7-alpine
+    container_name: quant-trader-redis
+    restart: always
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
+    # 端口映射（仅内部网络）
+    ports:
+      - "6379:6379"
+    
+    # 网络配置
+    networks:
+      - backend
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+    # 启动命令（持久化配置）
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 768mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    
+    # 数据卷
+    volumes:
+      - redis_data:/data
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==================== 消息队列服务 ====================
+  nats:
+    image: nats:2.10-alpine
+    container_name: quant-trader-nats
+    restart: always
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
+    # 端口映射
+    ports:
+      - "4222:4222"   # 客户端连接
+      - "8222:8222"   # 监控端口
+      - "6222:6222"   # 集群端口
+    
+    # 网络配置
+    networks:
+      - backend
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+    # 启动命令（JetStream 配置）
+    command: >
+      -js
+      -sd /data
+      -m 8222
+      --cluster nats-cluster
+      --cluster_name quant-trader
+      --http_port 8222
+      --jetstream_max_mem 512M
+      --jetstream_max_file 1G
+    
+    # 数据卷
+    volumes:
+      - nats_data:/data
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==================== 监控服务 ====================
+  
+  # Prometheus - 指标收集
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: quant-trader-prometheus
+    restart: always
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
+    # 端口映射
+    ports:
+      - "9091:9090"
+    
+    # 网络配置
+    networks:
+      - monitoring
+      - backend
+    
+    # 配置文件
+    volumes:
+      - prometheus_data:/prometheus
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/alerts.yml:/etc/prometheus/alerts.yml:ro
+    
+    # 启动命令
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Grafana - 可视化面板
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: quant-trader-grafana
+    restart: always
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    
+    # 端口映射
+    ports:
+      - "3000:3000"
+    
+    # 网络配置
+    networks:
+      - monitoring
+      - frontend
+    
+    # 环境变量
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://grafana.quant-trader.com
+      - GF_INSTALL_PLUGINS=redis-datasource
+    
+    # 数据卷
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Alertmanager - 告警管理
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: quant-trader-alertmanager
+    restart: always
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+    
+    # 端口映射
+    ports:
+      - "9093:9093"
+    
+    # 网络配置
+    networks:
+      - monitoring
+    
+    # 配置文件
+    volumes:
+      - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    
+    # 启动命令
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=https://alertmanager.quant-trader.com'
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==================== 备份服务 ====================
+  backup:
+    image: prodrigestivill/postgres-backup-local:15-alpine
+    container_name: quant-trader-backup
+    restart: always
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    
+    # 网络配置
+    networks:
+      - backend
+    
+    # 环境变量
+    environment:
+      - POSTGRES_HOST=timescaledb
+      - POSTGRES_DB=quant_trader
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - SCHEDULE=@daily
+      - BACKUP_KEEP_DAYS=30
+      - BACKUP_KEEP_WEEKS=4
+      - BACKUP_KEEP_MONTHS=6
+    
+    # 数据卷
+    volumes:
+      - ../../backups:/backups
+    
+    # 依赖服务
+    depends_on:
+      - timescaledb
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
